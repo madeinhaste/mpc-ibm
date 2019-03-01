@@ -30,6 +30,7 @@ const simple_program = create_program({
                     0.0,
                     1.0);
                 v_fog = fog * fog;
+                v_fog = 1.0;
             }
 
             gl_Position = u_mvp * P;
@@ -53,10 +54,10 @@ const grid_program = create_program({
         attribute vec2 a_coord;
         varying vec2 v_coord;
         uniform mat4 u_mvp;
-        uniform float u_scale;
+        uniform vec2 u_scale;
 
         void main() {
-            vec4 P = vec4(u_scale * a_coord, 0.0, 1.0);
+            vec4 P = vec4(u_scale.x * (a_coord-0.5), 0.0, 1.0);
             gl_Position = u_mvp * P;
             v_coord = a_coord;
         }
@@ -65,15 +66,17 @@ const grid_program = create_program({
         precision highp float;
         varying vec2 v_coord;
         uniform vec4 u_color;
-        uniform float u_scale;
+        uniform vec2 u_scale;
         uniform sampler2D u_tex;
 
         void main() {
-            vec2 uv = u_scale * v_coord;
+            vec2 uv = u_scale.y * v_coord;
             gl_FragColor = u_color * texture2D(u_tex, uv);
         }
     `,
 });
+
+let aerial = false;
 
 const persp = {
     pos: vec3.create(),
@@ -85,7 +88,7 @@ const persp = {
     viewproj: mat4.create(),
     viewproj_inv: mat4.create(),
 };
-vec3.set(persp.pos, 0, 3, 0);
+vec3.set(persp.pos, 0, 3, 120);
 
 const rot_target = quat.create();
 
@@ -102,6 +105,33 @@ const debug = (function() {
     };
 }());
 
+const box = {
+    verts: null,
+    elems: null,
+    count: 0,
+};
+
+{
+    // cube geometry
+    const points = [];
+    for (let i = 0; i < 8; ++i) {
+        const x = 2*((i & 1)>>0) - 1;
+        const y = 2*((i & 2)>>1) - 1;
+        const z = 2*((i & 4)>>2) - 1;
+        points.push(x, y, z);
+    }
+
+    const indices = [
+        0,1, 1,3, 3,2, 2,0, 
+        4,5, 5,7, 7,6, 6,4,
+        0,4, 2,6, 1,5, 3,7,
+    ];
+
+    box.verts = create_buffer(gl.ARRAY_BUFFER, new Float32Array(points));
+    box.elems = create_buffer(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices));
+    box.count = indices.length;
+}
+
 const mat = mat4.create();
 
 const draw_grid = (() => {
@@ -115,7 +145,7 @@ const draw_grid = (() => {
         v.push(x, -1, x, 1);
     }
     */
-    const v = [-1, -1, 1, -1, -1, 1, 1, 1];
+    const v = [0, 0, 1, 0, 0, 1, 1, 1];
     const n_verts = v.length/2;
     const buffer = create_buffer(gl.ARRAY_BUFFER, new Float32Array(v));
 
@@ -152,7 +182,7 @@ const draw_grid = (() => {
 
         pgm.uniformMatrix4fv('u_mvp', mat);
         pgm.uniform4f('u_color', 0.5, 0.8, 0.5, 1.0);
-        pgm.uniform1f('u_scale', 10000);
+        pgm.uniform2f('u_scale', 10000, aerial ? 500 : 10000);
         pgm.uniformSampler2D('u_tex', tex);
         gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
         pgm.vertexAttribPointer('a_coord', 2, gl.FLOAT, false, 0, 0);
@@ -172,7 +202,33 @@ function draw() {
 
     draw_grid();
     draw_spline();
+
+    if (aerial) {
+        // draw frustum
+        const pgm = simple_program.use();
+
+        mat4.identity(mat);
+        mat4.mul(mat, persp.viewproj, persp.viewproj_inv);
+
+        pgm.uniformMatrix4fv('u_mvp', mat);
+        pgm.uniformMatrix4fv('u_view', persp.view);
+
+        pgm.uniform4f('u_color', 1.0, 0.0, 0.2, 1.0);
+        pgm.uniform2f('u_fogrange', persp.zrange[0], persp.zrange[1]);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, box.verts);
+        pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, box.elems);
+        gl.drawElements(gl.LINES, box.count, gl.UNSIGNED_SHORT, 0);
+    }
 }
+
+const mat_3d_to_2d = mat4.fromValues(
+    0, 1, 0, 0,
+    0, 0, 0, 0,
+    -1, 0, 0, 0,
+    0, 0, 0, 1,
+);
 
 function update_persp() {
     // view matrix
@@ -186,6 +242,23 @@ function update_persp() {
     // view-projection
     mat4.mul(persp.viewproj, persp.proj, persp.view);
     mat4.invert(persp.viewproj_inv, persp.viewproj);
+
+    if (aerial) {
+        // overwrite with ortho camera
+        const cw = canvas.width;
+        const ch = canvas.height;
+        mat4.ortho(persp.proj, 0, cw, 0, ch, -1, 1);
+
+        // set view
+        mat4.identity(persp.view);
+        mat4.translate(persp.view, persp.view, [100, ch/2, 0]);
+        mat4.mul(persp.view, persp.view, mat_3d_to_2d);
+
+        const pos = persp.pos;
+        mat4.translate(persp.view, persp.view, [-pos[0], -pos[1], -pos[2]]);
+
+        mat4.mul(persp.viewproj, persp.proj, persp.view);
+    }
 }
 
 function update_spline() {
@@ -252,14 +325,15 @@ function update_spline() {
             }
         }
 
-        debug(`cps: ${cps.length/3}`);
+        //debug(`cps: ${cps.length/3}`);
     }
 
     if (!dirty)
         return;
 
     // XXX maybe only on increase?
-    const divs = 16;
+    //const divs = 16;
+    const divs = 4;
     if (spline.strip.length !== divs * cps.length) {
         spline.strip = new Float32Array(divs * cps.length);
         gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
@@ -328,7 +402,6 @@ function draw_spline() {
     pgm.uniform2f('u_fogrange', persp.zrange[0], persp.zrange[1]);
 
     // how do i draw into the ortho space?
-
     const n_verts = spline.strip.length / 3;
     if (n_verts) {
         gl.enable(gl.BLEND);
@@ -344,27 +417,29 @@ function draw_spline() {
 
 const V = vec3.create();
 
-function animate() {
-    requestAnimationFrame(animate);
+function update_player() {
+    const speed = 10.0;
 
     vec3.set(V, 0, 0.3, -1);
     vec3.transformQuat(V, V, persp.rot);
-    vec3.scaleAndAdd(persp.pos, persp.pos, V, 0.05);
+    vec3.scaleAndAdd(persp.pos, persp.pos, V, 0.05*speed);
 
     // gravity
-    persp.pos[1] -= 0.3 * 0.05;
+    persp.pos[1] -= 0.3 * 0.05 * speed;
 
-    debug(`lat: ${persp.pos[0].toFixed(3)} alt: ${persp.pos[1].toFixed(3)}`);
+    //debug(`lat: ${persp.pos[0].toFixed(3)} alt: ${persp.pos[1].toFixed(3)}`);
 
-    //vec3.set(V, 0, 1, 0);
-    //vec3.transformQuat(V, V, persp.rot);
-    //vec3.scaleAndAdd(persp.pos, persp.pos, V, 0.01);
-    //persp.pos[2] -= 0.05;
+    if (aerial)
+        quat.identity(rot_target);
 
-    //quat.lerp(persp.rot, persp.rot, rot_target, 0.005);
     quat.lerp(persp.rot, persp.rot, rot_target, 0.01);
     quat.normalize(persp.rot, persp.rot);
+}
 
+function animate() {
+    requestAnimationFrame(animate);
+
+    update_player();
     update_persp();
     update_spline();
     draw();
@@ -379,4 +454,12 @@ document.onmousemove = e => {
     quat.identity(rot_target);
     quat.rotateZ(rot_target, rot_target, -mx * 60 * DEG2RAD);
     quat.rotateX(rot_target, rot_target, -my * 30 * DEG2RAD);
+};
+
+document.onkeydown = e => {
+    if (e.code == 'KeyA') {
+        aerial = !aerial;
+        debug(aerial ? 'aerial' : 'persp');
+        e.preventDefault();
+    }
 };
