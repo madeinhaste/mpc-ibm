@@ -12,7 +12,8 @@ export function create_buffer(target, data=null, usage) {
 
     let b = gl.createBuffer();
     gl.bindBuffer(target, b);
-    gl.bufferData(target, data, usage || gl.STATIC_DRAW);
+    if (data)
+        gl.bufferData(target, data, usage || gl.STATIC_DRAW);
     return b;
 }
 
