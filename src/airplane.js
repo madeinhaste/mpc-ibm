@@ -14,21 +14,35 @@ const simple_program = create_program({
     name: 'simple',
     vertex: GLSL`
         attribute vec3 a_position;
+        varying float v_fog;
         uniform mat4 u_mvp;
+        uniform mat4 u_view;
         uniform float u_pointsize;
+        uniform vec2 u_fogrange;
 
         void main() {
             vec4 P = vec4(a_position, 1.0);
+
+            {
+                float z = -(u_view * P).z;
+                float fog = 1.0 - clamp(
+                    (z - u_fogrange[0]) / (u_fogrange[1] - u_fogrange[0]),
+                    0.0,
+                    1.0);
+                v_fog = fog * fog;
+            }
+
             gl_Position = u_mvp * P;
             gl_PointSize = u_pointsize;
         }
     `,
     fragment: GLSL`
         precision highp float;
+        varying float v_fog;
         uniform vec4 u_color;
 
         void main() {
-            gl_FragColor = u_color;
+            gl_FragColor = v_fog * u_color;
         }
     `,
 });
@@ -65,18 +79,18 @@ const persp = {
     pos: vec3.create(),
     rot: quat.create(),
     fov: 30 * DEG2RAD,
-    zrange: [1, 1000],
+    zrange: [0.1, 500],
     proj: mat4.create(),
     view: mat4.create(),
     viewproj: mat4.create(),
     viewproj_inv: mat4.create(),
 };
-vec3.set(persp.pos, 0, 3, 20);
+vec3.set(persp.pos, 0, 3, 0);
 
 const rot_target = quat.create();
 
 const spline = {
-    cps: [0,0,0],
+    cps: [0,3,30],
     strip: new Float32Array(),
     buffer: create_buffer(gl.ARRAY_BUFFER),
 };
@@ -157,7 +171,7 @@ function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     draw_grid();
-    //draw_spline();
+    draw_spline();
 }
 
 function update_persp() {
@@ -227,9 +241,9 @@ function update_spline() {
                 const y0 = cps[dp - 2];
                 const z0 = cps[dp - 1];
 
-                const x1 = x0 + random_gaussian(0, 50);
-                const y1 = y0 + random_gaussian(0, 50);
-                const z1 = z0 - random_gaussian(100, 5);
+                const x1 = x0 + random_gaussian(0, 5);
+                const y1 = y0 + random_gaussian(0, 5);
+                const z1 = z0 - random_gaussian(50, 0);
 
                 cps.push(x1, y1, z1);
                 dp += 3;
@@ -245,7 +259,7 @@ function update_spline() {
         return;
 
     // XXX maybe only on increase?
-    const divs = 4;
+    const divs = 16;
     if (spline.strip.length !== divs * cps.length) {
         spline.strip = new Float32Array(divs * cps.length);
         gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
@@ -307,9 +321,11 @@ function update_spline() {
 function draw_spline() {
     const pgm = simple_program.use();
 
-    mat4.mul(mat, mvp, mat_3d_to_2d);
-    pgm.uniformMatrix4fv('u_mvp', mat);
+    //mat4.mul(mat, mvp, mat_3d_to_2d);
+    pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
+    pgm.uniformMatrix4fv('u_view', persp.view);
     pgm.uniform4f('u_color', 1.0, 0.8, 0.2, 1.0);
+    pgm.uniform2f('u_fogrange', persp.zrange[0], persp.zrange[1]);
 
     // how do i draw into the ortho space?
 
@@ -318,7 +334,7 @@ function draw_spline() {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
         gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
-        pgm.vertexAttribPointer('a_coord', 3, gl.FLOAT, false, 0, 0);
+        pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
         gl.drawArrays(gl.LINE_STRIP, 0, n_verts);
         pgm.uniform1f('u_pointsize', 3);
         gl.drawArrays(gl.POINTS, 0, n_verts);
@@ -331,12 +347,12 @@ const V = vec3.create();
 function animate() {
     requestAnimationFrame(animate);
 
-    vec3.set(V, 0, 0.1, -1);
+    vec3.set(V, 0, 0.3, -1);
     vec3.transformQuat(V, V, persp.rot);
     vec3.scaleAndAdd(persp.pos, persp.pos, V, 0.05);
 
     // gravity
-    persp.pos[1] -= 0.1 * 0.05;
+    persp.pos[1] -= 0.3 * 0.05;
 
     debug(`lat: ${persp.pos[0].toFixed(3)} alt: ${persp.pos[1].toFixed(3)}`);
 
@@ -345,11 +361,12 @@ function animate() {
     //vec3.scaleAndAdd(persp.pos, persp.pos, V, 0.01);
     //persp.pos[2] -= 0.05;
 
-    quat.lerp(persp.rot, persp.rot, rot_target, 0.005);
+    //quat.lerp(persp.rot, persp.rot, rot_target, 0.005);
+    quat.lerp(persp.rot, persp.rot, rot_target, 0.01);
     quat.normalize(persp.rot, persp.rot);
 
     update_persp();
-    //update_spline();
+    update_spline();
     draw();
 }
 
