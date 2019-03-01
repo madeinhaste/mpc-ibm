@@ -242,6 +242,7 @@ function update_persp() {
 function update_spline() {
     const cps = spline.cps;
     let n_cps = spline.cps.length;
+    let dirty = false;
 
     if (1) {
         const cps = spline.cps;
@@ -265,6 +266,7 @@ function update_spline() {
 
             if (count > 0 && (cps.length/3 > 3)) {
                 cps.splice(0, 3*count);
+                dirty = true;
             }
         }
 
@@ -297,11 +299,15 @@ function update_spline() {
                 cps.push(x1, y1, z1);
                 dp += 3;
                 ++count;
+                dirty = true;
             }
         }
 
         debug(`cps: ${cps.length/3}`);
     }
+
+    if (!dirty)
+        return;
 
     // XXX maybe only on increase?
     const divs = 4;
@@ -309,6 +315,7 @@ function update_spline() {
         spline.strip = new Float32Array(divs * cps.length);
         gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
         gl.bufferData(gl.ARRAY_BUFFER, spline.strip, gl.STATIC_DRAW);
+        //console.log('spline: realloc', spline.strip.length/3);
     }
 
     {
@@ -358,6 +365,7 @@ function update_spline() {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, out);
+        //console.log('spline: rebuild');
     }
 }
 
