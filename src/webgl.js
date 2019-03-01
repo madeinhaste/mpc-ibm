@@ -351,3 +351,12 @@ export function create_texture(options) {
 
     return texture;
 }
+
+// GLSL pass-thru template literal for syntax highlighter
+export const GLSL = (chunks, ...args) => {
+    let out = '';
+    chunks.forEach((chunk, i) => {
+        out += chunk + (args[i] || '');
+    });
+    return out;
+};

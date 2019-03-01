@@ -2,7 +2,7 @@ import './reloader';
 import {mat4, vec2} from 'gl-matrix';
 import {resize_canvas_to_client_size, redraw_func, $} from './utils';
 import {camera, player, update, trails, trail_hooks, route, STATE_ALIVE} from './plane-game.js';
-import {create_gl, create_buffer, create_program} from './webgl';
+import {create_gl, create_buffer, create_program, GLSL} from './webgl';
 
 const canvas = $('canvas');
 const gl = create_gl(canvas);
@@ -10,15 +10,6 @@ console.log(gl.getContextAttributes());
 
 trail_hooks.init_path = points => create_buffer(gl.ARRAY_BUFFER, points);
 trail_hooks.free_path = buffer => gl.deleteBuffer(buffer);
-
-// GLSL pass-thru template literal for syntax highlighter
-const GLSL = (chunks, ...args) => {
-    let out = '';
-    chunks.forEach((chunk, i) => {
-        out += chunk + (args[i] || '');
-    });
-    return out;
-};
 
 const simple_program = create_program({
     name: 'simple',
