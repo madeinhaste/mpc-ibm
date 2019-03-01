@@ -71,8 +71,9 @@ const persp = {
     viewproj: mat4.create(),
     viewproj_inv: mat4.create(),
 };
-
 vec3.set(persp.pos, 0, 3, 20);
+
+const rot_target = quat.create();
 
 const spline = {
     cps: [0,0,0],
@@ -325,10 +326,27 @@ function draw_spline() {
     }
 }
 
+const V = vec3.create();
+
 function animate() {
     requestAnimationFrame(animate);
 
-    persp.pos[2] -= 0.05;
+    vec3.set(V, 0, 0.1, -1);
+    vec3.transformQuat(V, V, persp.rot);
+    vec3.scaleAndAdd(persp.pos, persp.pos, V, 0.05);
+
+    // gravity
+    persp.pos[1] -= 0.1 * 0.05;
+
+    debug(`lat: ${persp.pos[0].toFixed(3)} alt: ${persp.pos[1].toFixed(3)}`);
+
+    //vec3.set(V, 0, 1, 0);
+    //vec3.transformQuat(V, V, persp.rot);
+    //vec3.scaleAndAdd(persp.pos, persp.pos, V, 0.01);
+    //persp.pos[2] -= 0.05;
+
+    quat.lerp(persp.rot, persp.rot, rot_target, 0.005);
+    quat.normalize(persp.rot, persp.rot);
 
     update_persp();
     //update_spline();
@@ -336,3 +354,12 @@ function animate() {
 }
 
 animate();
+
+document.onmousemove = e => {
+    const mx = 2*(e.offsetX / canvas.width) - 1;
+    const my = 2*(e.offsetY / canvas.height) - 1;
+
+    quat.identity(rot_target);
+    quat.rotateZ(rot_target, rot_target, -mx * 60 * DEG2RAD);
+    quat.rotateX(rot_target, rot_target, -my * 30 * DEG2RAD);
+};
