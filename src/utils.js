@@ -17,8 +17,8 @@ export function redraw_func(callback) {
     }
 }
 
-export function resize_canvas_to_client_size(canvas) {
-    const dpr = window.devicePixelRatio || 1;
+export function resize_canvas_to_client_size(canvas, retina) {
+    const dpr = retina ? window.devicePixelRatio : 1;
     const cw = dpr * canvas.clientWidth;
     const ch = dpr * canvas.clientHeight;
     if (canvas.width !== cw || canvas.height !== ch) {

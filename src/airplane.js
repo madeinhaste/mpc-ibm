@@ -203,7 +203,7 @@ const draw_grid = (() => {
 })();
 
 function draw() {
-    resize_canvas_to_client_size(canvas);
+    resize_canvas_to_client_size(canvas, false);
 
     const cw = canvas.width;
     const ch = canvas.height;
