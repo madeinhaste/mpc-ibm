@@ -4,7 +4,7 @@ import {lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_size, red
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
 import {init_clouds, update_clouds, draw_clouds} from './clouds';
 
-const worker = new Worker('/bundles/trail-worker-3d.bundle.js');
+const worker = new Worker('./bundles/trail-worker-3d.bundle.js');
 
 const canvas = $('canvas');
 const gl = create_gl(canvas);
