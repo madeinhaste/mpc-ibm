@@ -12,7 +12,7 @@ function update_bounds(bounds, pos) {
 }
 
 function process(req) {
-    const N = Noise(0.005, 2);
+    const N = Noise(0.005, 1);
     const V = vec3.create();
     const P = vec3.create();
 
@@ -46,7 +46,7 @@ function process(req) {
         let iters = 0;
         for (;;) {
             curl(V, N, P[0], P[1], P[2]);
-            const speed = 0.1;
+            const speed = 100;
             vec3.scaleAndAdd(P, P, V, speed);
 
             vec3.sub(D1, P, pos);
@@ -183,7 +183,7 @@ function dP(out, N, x, y, z, dx, dy, dz) {
 
 function curl(out, N, x, y, z) {
     // sample potential gradient
-    const e = 0.001;
+    const e = 0.01;
     dP(dPdx, N, x, y, z, e, 0, 0);
     dP(dPdy, N, x, y, z, 0, e, 0);
     dP(dPdz, N, x, y, z, 0, 0, e);
