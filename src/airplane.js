@@ -108,7 +108,7 @@ const spline = {
 const trails = [];
 const max_num_trails = 100;
 let next_trail_spawn_time = 0;
-const trail_spawn_interval = 500;
+const trail_spawn_interval = 100;
 
 const debug = (function() {
     const el = $('.debug');
@@ -423,17 +423,46 @@ function find_or_create_new_trail() {
     return trail;
 }
 
+// buffer for potential field visualization
+const potential = {
+    buffer: gl.createBuffer(gl.ARRAY_BUFFER),
+    count: 0,
+};
+
 worker.onmessage = function(e) {
     const data = e.data;
-    const trail = find_or_create_new_trail();
 
-    const points = new Float32Array(data.points);
-    trail.buffer = create_buffer(gl.ARRAY_BUFFER, points);
-    trail.n_points = points.length/3;
-    trail.bounds = data.bounds;
-    //console.log(trail.bounds);
-    trail.alive = true;
+    if (data.type == 'P') {
+        // potential field
+        const points = new Float32Array(data.points);
+        gl.bindBuffer(gl.ARRAY_BUFFER, potential.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, points, gl.STATIC_DRAW);
+        potential.count = points.length/3;
+    }
+    else
+    {
+        // trail data
+        const trail = find_or_create_new_trail();
+        const points = new Float32Array(data.points);
+        trail.buffer = create_buffer(gl.ARRAY_BUFFER, points);
+        trail.n_points = points.length/3;
+        trail.bounds = data.bounds;
+        trail.alive = true;
+    }
 };
+
+function request_potential() {
+    const zmax = persp.pos[2] - persp.zrange[0];
+    const zmin = persp.pos[2] - persp.zrange[1];
+    const z = (zmin + zmax)/2;
+    const r = (zmax - zmin)/2;
+
+    worker.postMessage({
+        type: 'P',
+        bounds: [-r, -r, zmin-200, r, r, zmax-200],
+        count: 100,
+    });
+}
 
 function update_trails() {
     const min_z = spline.cps[spline.cps.length-1];
@@ -472,16 +501,13 @@ function update_trails() {
             start[1] = spline.cps[sp + 1];
             start[2] = spline.cps[sp + 2];
 
-            const r = lerp(10, 100, Math.random());
+            const r = lerp(10, 20, Math.random());
             const t = 2 * Math.PI * Math.random();
             start[0] += r * Math.cos(t);
             start[1] += r * Math.sin(t);
         }
 
-        worker.postMessage({
-            start,
-            count: 100,
-        });
+        worker.postMessage({ start, count: 1000 });
     }
 }
 
@@ -506,6 +532,13 @@ function draw_trails() {
         //pgm.uniform1f('u_pointsize', 3);
         //gl.drawArrays(gl.POINTS, 0, n_verts);
     }
+
+    if (potential.count) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, potential.buffer);
+        pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.LINES, 0, potential.count);
+    }
+
     gl.disable(gl.BLEND);
 }
 
@@ -559,7 +592,7 @@ function animate() {
     update_player();
     update_persp();
     update_spline();
-    update_trails();
+    //update_trails();
     draw();
 }
 
@@ -580,6 +613,12 @@ document.onkeydown = e => {
         debug(aerial ? 'aerial' : 'persp');
         e.preventDefault();
     }
+
+    if (e.code == 'KeyP') {
+        request_potential();
+        e.preventDefault();
+    }
+
     if (e.code == 'KeyF') {
         fog_enabled = !fog_enabled;
         e.preventDefault();
