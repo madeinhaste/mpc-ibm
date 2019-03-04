@@ -2,6 +2,7 @@ import './reloader';
 import {mat4, vec2, vec3, vec4, quat} from 'gl-matrix';
 import {lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_size, redraw_func, $} from './utils';
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
+import {init_clouds, update_clouds, draw_clouds} from './clouds';
 
 const worker = new Worker('/bundles/trail-worker-3d.bundle.js');
 
@@ -9,9 +10,12 @@ const canvas = $('canvas');
 const gl = create_gl(canvas);
 const gl_ext = {
     aniso: gl.getExtension('EXT_texture_filter_anisotropic'),
+    instanced: gl.getExtension('ANGLE_instanced_arrays'),
 };
 //console.log(gl.getContextAttributes());
 let fog_enabled = true;
+let grid_enabled = true;
+let wireframe = false;
 
 const simple_program = create_program({
     name: 'simple',
@@ -50,6 +54,44 @@ const simple_program = create_program({
     `,
 });
 
+const trail_program = create_program({
+    name: 'simple',
+    vertex: GLSL`
+        attribute vec3 a_position;
+        varying float v_fog;
+        uniform mat4 u_mvp;
+        uniform mat4 u_view;
+        uniform float u_pointsize;
+        uniform vec2 u_fogrange;
+
+        void main() {
+            vec4 P = vec4(a_position, 1.0);
+
+            {
+                float z = -(u_view * P).z;
+                float fog = 1.0 - clamp(
+                    (z - u_fogrange[0]) / (u_fogrange[1] - u_fogrange[0]),
+                    0.0,
+                    1.0);
+                v_fog = fog * fog;
+            }
+
+            gl_Position = u_mvp * P;
+            gl_PointSize = u_pointsize;
+        }
+    `,
+    fragment: GLSL`
+        precision highp float;
+        varying float v_fog;
+        uniform vec4 u_color;
+
+        void main() {
+            float f = 1.0 - v_fog;
+            gl_FragColor = vec4(f, f, f, 1.0);
+        }
+    `,
+});
+
 const grid_program = create_program({
     name: 'grid',
     vertex: GLSL`
@@ -79,6 +121,7 @@ const grid_program = create_program({
 });
 
 let aerial = false;
+let speed = 1.0;
 
 const persp = {
     pos: vec3.create(),
@@ -100,7 +143,7 @@ function get_fog_range() {
 }
 
 const spline = {
-    cps: [0,3,30],
+    cps: [0,3,200],
     strip: new Float32Array(),
     buffer: create_buffer(gl.ARRAY_BUFFER),
 };
@@ -108,7 +151,7 @@ const spline = {
 const trails = [];
 const max_num_trails = 100;
 let next_trail_spawn_time = 0;
-const trail_spawn_interval = 100;
+const trail_spawn_interval = 500;
 
 const debug = (function() {
     const el = $('.debug');
@@ -198,9 +241,16 @@ const draw_grid = (() => {
         pgm.uniformSampler2D('u_tex', tex);
         gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
         pgm.vertexAttribPointer('a_coord', 2, gl.FLOAT, false, 0, 0);
+
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, n_verts);
+        gl.disable(gl.BLEND);
     };
 })();
+
+init_clouds();
+update_clouds(persp, true);
 
 function draw() {
     resize_canvas_to_client_size(canvas, false);
@@ -209,12 +259,16 @@ function draw() {
     const ch = canvas.height;
     gl.viewport(0, 0, cw, ch);
 
-    gl.clearColor(0, 0, 0, 1);
+    if (aerial)
+        gl.clearColor(0, 0, 0, 1);
+    else
+        gl.clearColor(.271, .518, .706, 1)
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    draw_grid();
+    grid_enabled && draw_grid();
     draw_spline();
     draw_trails();
+    draw_clouds(persp, get_fog_range(), gl_ext.instanced, wireframe);
 
     if (aerial) {
         // draw frustum
@@ -346,7 +400,7 @@ function update_spline() {
 
     // XXX maybe only on increase?
     //const divs = 16;
-    const divs = 4;
+    const divs = 8;
     if (spline.strip.length !== divs * cps.length) {
         spline.strip = new Float32Array(divs * cps.length);
         gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
@@ -467,7 +521,7 @@ function request_potential() {
 function update_trails() {
     const min_z = spline.cps[spline.cps.length-1];
     const max_z = spline.cps[2];
-    debug(`min: ${min_z}  max: ${max_z}`);
+    //debug(`min: ${min_z}  max: ${max_z}`);
 
     // prune & count live trails
     let alive_count = 0;
@@ -507,20 +561,23 @@ function update_trails() {
             start[1] += r * Math.sin(t);
         }
 
-        worker.postMessage({ start, count: 1000 });
+        worker.postMessage({ start, count: 200 });
     }
 }
 
 function draw_trails() {
-    const pgm = simple_program.use();
+    const pgm = trail_program.use();
 
     pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
     pgm.uniformMatrix4fv('u_view', persp.view);
-    pgm.uniform4f('u_color', 1.0, 0.1, 0.7, 1.0);
+    //pgm.uniform4f('u_color', 1.0, 0.1, 0.7, 1.0);
+    pgm.uniform4f('u_color', 0, 0, 0, 1);
     pgm.uniform2fv('u_fogrange', get_fog_range());
 
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.blendFunc(gl.DST_COLOR, gl.ZERO);
+    gl.lineWidth(3);
     for (let i = 0; i < trails.length; ++i) {
         const trail = trails[i];
         if (!trail.alive)
@@ -539,6 +596,7 @@ function draw_trails() {
         gl.drawArrays(gl.LINES, 0, potential.count);
     }
 
+    gl.lineWidth(1);
     gl.disable(gl.BLEND);
 }
 
@@ -558,9 +616,11 @@ function draw_spline() {
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
         gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
         pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
+        gl.lineWidth(10);
         gl.drawArrays(gl.LINE_STRIP, 0, n_verts);
-        pgm.uniform1f('u_pointsize', 3);
-        gl.drawArrays(gl.POINTS, 0, n_verts);
+        //pgm.uniform1f('u_pointsize', 3);
+        //gl.drawArrays(gl.POINTS, 0, n_verts);
+        gl.lineWidth(1);
         gl.disable(gl.BLEND);
     }
 }
@@ -568,7 +628,7 @@ function draw_spline() {
 const V = vec3.create();
 
 function update_player() {
-    const speed = 10.0;
+    //const speed = 1.0;
 
     vec3.set(V, 0, 0.3, -1);
     vec3.transformQuat(V, V, persp.rot);
@@ -577,7 +637,7 @@ function update_player() {
     // gravity
     persp.pos[1] -= 0.3 * 0.05 * speed;
 
-    //debug(`lat: ${persp.pos[0].toFixed(3)} alt: ${persp.pos[1].toFixed(3)}`);
+    debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}`);
 
     if (aerial)
         quat.identity(rot_target);
@@ -592,7 +652,8 @@ function animate() {
     update_player();
     update_persp();
     update_spline();
-    //update_trails();
+    update_trails();
+    update_clouds(persp, false);
     draw();
 }
 
@@ -623,4 +684,20 @@ document.onkeydown = e => {
         fog_enabled = !fog_enabled;
         e.preventDefault();
     }
+
+    if (e.code == 'KeyW') {
+        wireframe = !wireframe;
+        e.preventDefault();
+    }
+
+    if (e.code == 'KeyG') {
+        grid_enabled = !grid_enabled;
+        e.preventDefault();
+    }
+};
+
+document.onmousewheel = e => {
+    const dy = -e.deltaY/53;
+    speed = clamp(speed * (1 + 0.1*dy), 1, 50);
+    e.preventDefault();
 };
