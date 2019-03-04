@@ -11,6 +11,7 @@ const gl_ext = {
     aniso: gl.getExtension('EXT_texture_filter_anisotropic'),
 };
 //console.log(gl.getContextAttributes());
+let fog_enabled = true;
 
 const simple_program = create_program({
     name: 'simple',
@@ -32,7 +33,6 @@ const simple_program = create_program({
                     0.0,
                     1.0);
                 v_fog = fog * fog;
-                v_fog = 1.0;
             }
 
             gl_Position = u_mvp * P;
@@ -93,6 +93,11 @@ const persp = {
 vec3.set(persp.pos, 0, 3, 120);
 
 const rot_target = quat.create();
+
+let fog_disabled_range = vec2.fromValues(-Infinity, Infinity);
+function get_fog_range() {
+    return fog_enabled ? persp.zrange : fog_disabled_range;
+}
 
 const spline = {
     cps: [0,3,30],
@@ -222,7 +227,7 @@ function draw() {
         pgm.uniformMatrix4fv('u_view', persp.view);
 
         pgm.uniform4f('u_color', 1.0, 0.0, 0.2, 1.0);
-        pgm.uniform2f('u_fogrange', persp.zrange[0], persp.zrange[1]);
+        pgm.uniform2fv('u_fogrange', get_fog_range());
 
         gl.bindBuffer(gl.ARRAY_BUFFER, box.verts);
         pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
@@ -486,7 +491,7 @@ function draw_trails() {
     pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
     pgm.uniformMatrix4fv('u_view', persp.view);
     pgm.uniform4f('u_color', 1.0, 0.1, 0.7, 1.0);
-    pgm.uniform2f('u_fogrange', persp.zrange[0], persp.zrange[1]);
+    pgm.uniform2fv('u_fogrange', get_fog_range());
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
@@ -511,7 +516,7 @@ function draw_spline() {
     pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
     pgm.uniformMatrix4fv('u_view', persp.view);
     pgm.uniform4f('u_color', 1.0, 0.8, 0.2, 1.0);
-    pgm.uniform2f('u_fogrange', persp.zrange[0], persp.zrange[1]);
+    pgm.uniform2fv('u_fogrange', get_fog_range());
 
     // how do i draw into the ortho space?
     const n_verts = spline.strip.length / 3;
@@ -573,6 +578,10 @@ document.onkeydown = e => {
     if (e.code == 'KeyA') {
         aerial = !aerial;
         debug(aerial ? 'aerial' : 'persp');
+        e.preventDefault();
+    }
+    if (e.code == 'KeyF') {
+        fog_enabled = !fog_enabled;
         e.preventDefault();
     }
 };
