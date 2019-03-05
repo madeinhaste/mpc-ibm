@@ -57,6 +57,7 @@ export function init_clouds() {
             attribute vec3 a_position;
             attribute vec2 a_scale_rotate;
             varying float v_fog;
+            varying float v_fade;
             varying vec2 v_coord;
             uniform mat4 u_mvp;
             uniform mat4 u_view;
@@ -88,6 +89,9 @@ export function init_clouds() {
                         0.0,
                         1.0);
                     v_fog = fog * fog;
+
+                    // fade out clouds as the approach near plane
+                    v_fade = pow(fog, 100.0);
                 }
 
                 gl_Position = u_mvp * P;
@@ -98,6 +102,7 @@ export function init_clouds() {
             precision highp float;
             varying float v_fog;
             varying vec2 v_coord;
+            varying float v_fade;
             uniform sampler2D u_texture;
             uniform sampler2D u_texture_sky;
             uniform bool u_use_texture;
@@ -116,6 +121,9 @@ export function init_clouds() {
                 } else {
                     C = vec4(1, 1, 0, v_fog);
                 }
+                //C.rgb = mix(C.rgb, vec3(0.8, 0.6, 0.7), 1.0-v_fade);
+                //C.rgb = mix(C.rgb, vec3(1,0,0), v_fade);
+                C.a *= (1.0 - v_fade);
                 gl_FragColor = C;
             }
         `,
