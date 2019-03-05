@@ -66,6 +66,7 @@ const spline_program = create_program({
         uniform mat4 u_mvp;
         uniform mat4 u_view;
         uniform vec2 u_fogrange;
+        uniform vec2 u_scale;
 
         vec3 transform_quat(vec3 v, vec4 q) {
             vec3 t = 2.0 * cross(q.xyz, v);
@@ -73,11 +74,10 @@ const spline_program = create_program({
         }
 
         void main() {
-            float scale = 0.05;
             vec3 P;
 
             {
-                P = vec3(scale*a_position.xy, 3.0*a_position.z);
+                P = vec3(u_scale[0]*a_position.xy, u_scale[1]*a_position.z);
                 P = a_P + transform_quat(P, a_Q);
                 v_gradient = a_position.z;
             }
@@ -804,6 +804,7 @@ function draw_spline() {
     pgm.uniform4f('u_color0', 1.0, 0.8, 0.2, 1.0);
     pgm.uniform4f('u_color1', 1.0, 1.0, 0.2, 1.0);
     pgm.uniform2fv('u_fogrange', get_fog_range());
+    pgm.uniform2f('u_scale', aerial ? 1 : 0.05, 3.0);
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
