@@ -1052,7 +1052,9 @@ window.addEventListener('deviceorientation', function(e) {
         return;
     }
 
-    debug(`o=${ori}  α=${e.alpha.toFixed(3)}  β=${e.beta.toFixed(3)}  γ=${e.gamma.toFixed(3)}`);
+    autopilot_enabled = false;
+
+    //debug(`o=${ori}  α=${e.alpha.toFixed(3)}  β=${e.beta.toFixed(3)}  γ=${e.gamma.toFixed(3)}`);
 
     quat.identity(rot_target);
 
