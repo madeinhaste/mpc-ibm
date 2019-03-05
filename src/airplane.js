@@ -1,5 +1,5 @@
 import './reloader';
-import {mat4, vec2, vec3, vec4, quat} from 'gl-matrix';
+import {mat3, mat4, vec2, vec3, vec4, quat} from 'gl-matrix';
 import {lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_size, redraw_func, $} from './utils';
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
 import {init_clouds, update_clouds, draw_clouds} from './clouds';
@@ -50,6 +50,59 @@ const simple_program = create_program({
 
         void main() {
             gl_FragColor = v_fog * u_color;
+        }
+    `,
+});
+
+const spline_program = create_program({
+    name: 'spline',
+    vertex: GLSL`
+        attribute vec3 a_position;
+        attribute vec3 a_P;
+        attribute vec4 a_Q;
+
+        varying float v_fog;
+        varying float v_gradient;
+        uniform mat4 u_mvp;
+        uniform mat4 u_view;
+        uniform vec2 u_fogrange;
+
+        vec3 transform_quat(vec3 v, vec4 q) {
+            vec3 t = 2.0 * cross(q.xyz, v);
+            return v + q.w*t + cross(q.xyz, t);
+        }
+
+        void main() {
+            float scale = 0.05;
+            vec3 P;
+
+            {
+                P = vec3(scale*a_position.xy, 3.0*a_position.z);
+                P = a_P + transform_quat(P, a_Q);
+                v_gradient = a_position.z;
+            }
+
+            {
+                float z = -(u_view * vec4(P, 1.0)).z;
+                float fog = 1.0 - clamp(
+                    (z - u_fogrange[0]) / (u_fogrange[1] - u_fogrange[0]),
+                    0.0,
+                    1.0);
+                v_fog = fog * fog;
+            }
+
+            gl_Position = u_mvp * vec4(P, 1.0);
+        }
+    `,
+    fragment: GLSL`
+        precision highp float;
+        varying float v_fog;
+        varying float v_gradient;
+        uniform vec4 u_color0;
+        uniform vec4 u_color1;
+
+        void main() {
+            gl_FragColor = v_fog * mix(u_color0, u_color1, v_gradient);
         }
     `,
 });
@@ -120,8 +173,64 @@ const grid_program = create_program({
     `,
 });
 
+const sky_program = create_program({
+    name: 'sky',
+    vertex: GLSL`
+        attribute vec2 a_position;
+        varying vec3 v_dir;
+
+        uniform mat4 u_proj_inv;
+        uniform mat3 u_view_inv;
+
+        void main() {
+            vec4 P = vec4(a_position, 0.0, 1.0);
+
+            {
+                v_dir = u_view_inv * (u_proj_inv * P).xyz;
+            }
+
+            gl_Position = P;
+        }
+    `,
+    fragment: GLSL`
+        precision highp float;
+        varying vec3 v_dir;
+        uniform sampler2D u_texture;
+        uniform vec2 u_resolution;
+        void main() {
+            vec3 dir = normalize(v_dir);
+            /*
+            vec2 uv = vec2(
+                (atan(dir.z, dir.x) / 6.283185307179586476925286766559) + 0.5,
+                acos(dir.y) / 3.1415926535897932384626433832795);
+            uv.x = 0.0;
+            */
+            vec2 uv = vec2(0.0, acos(dir.y) / 3.1415926535897932384626433832795);
+            //uv = gl_FragCoord.xy / u_resolution;
+            vec3 C = texture2D(u_texture, uv).rgb;
+            C *= 0.7;
+            gl_FragColor = vec4(C, 1.0);
+            //gl_FragColor.rg = uv;
+        }
+    `,
+});
+
+const buf_fstri = create_buffer(gl.ARRAY_BUFFER, new Float32Array([ -1, -1, 3, -1, -1, 3 ]));
+
+const tex_equi = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
+{
+    const img = new Image;
+    img.src = 'images/sky.png';
+    img.onload = _ => {
+        gl.bindTexture(gl.TEXTURE_2D, tex_equi);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        console.log('loaded:', img.src);
+    };
+}
+
 let aerial = false;
-let speed = 1.0;
+let speed = 3.0;
 
 const persp = {
     pos: vec3.create(),
@@ -133,7 +242,7 @@ const persp = {
     viewproj: mat4.create(),
     viewproj_inv: mat4.create(),
 };
-vec3.set(persp.pos, 0, 3, 120);
+vec3.set(persp.pos, 0, 20, 120);
 
 const rot_target = quat.create();
 
@@ -143,10 +252,43 @@ function get_fog_range() {
 }
 
 const spline = {
-    cps: [0,3,200],
-    strip: new Float32Array(),
+    cps: [0,20,200],
     buffer: create_buffer(gl.ARRAY_BUFFER),
+    n_shape_verts: 0,
+    shape: null,
+    n_verts: 0,
 };
+
+{
+    const v = [];
+    const n = 32;
+
+    for (let i = 0; i < n; ++i) {
+        const theta = 2*Math.PI * i/(n-1);
+        const r = 1.0;
+
+        const x = r*Math.cos(theta);
+        const y = r*Math.sin(theta);
+
+        v.push(x, y, 1);
+        v.push(x, y, 0);
+    }
+
+    // cap
+    for (let i = 0; i < n; ++i) {
+        const theta = 2*Math.PI * i/(n-1);
+        const r = 1.0;
+
+        const x = r*Math.cos(theta);
+        const y = r*Math.sin(theta);
+
+        v.push(x, y, 0);
+        v.push(0, 0, 0);
+    }
+
+    spline.shape = create_buffer(gl.ARRAY_BUFFER, new Float32Array(v));
+    spline.n_shape_verts = v.length / 3;
+}
 
 const trails = [];
 const max_num_trails = 100;
@@ -263,12 +405,14 @@ function draw() {
         gl.clearColor(0, 0, 0, 1);
     else
         gl.clearColor(.271, .518, .706, 1)
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    draw_sky();
 
     grid_enabled && draw_grid();
-    draw_spline();
-    draw_trails();
+    //draw_trails();
     draw_clouds(persp, get_fog_range(), gl_ext.instanced, wireframe);
+    draw_spline();
 
     if (aerial) {
         // draw frustum
@@ -328,91 +472,85 @@ function update_persp() {
     }
 }
 
-function update_spline() {
+function update_spline_cps() {
     const cps = spline.cps;
-    let n_cps = spline.cps.length;
     let dirty = false;
 
-    if (1) {
-        const cps = spline.cps;
+    // calc near and far points
+    const cam_zmax = persp.pos[2] - persp.zrange[0];
+    const cam_zmin = persp.pos[2] - persp.zrange[1];
 
-        // calc near and far points
-        const cam_zmax = persp.pos[2] - persp.zrange[0];
-        const cam_zmin = persp.pos[2] - persp.zrange[1];
-
-        // count elements >= zmax
-        {
-            let count = 0;
-            for (let i = 0; i < cps.length; i += 3) {
-                const z = cps[i + 2];
-                if (z < cam_zmax)
-                    break;
-                ++count;
-            }
-
-            // keep one for spline
-            count -= 2;
-
-            if (count > 0 && (cps.length/3 > 3)) {
-                cps.splice(0, 3*count);
-                dirty = true;
-            }
+    // count elements >= zmax
+    {
+        let count = 0;
+        for (let i = 0; i < cps.length; i += 3) {
+            const z = cps[i + 2];
+            if (z < cam_zmax)
+                break;
+            ++count;
         }
 
-        // advance
-        {
-            // need to ensure N are <= cam_zmin
+        // keep one for spline
+        count -= 2;
 
-            let n_cps = cps.length/3;
-            let count = 0;
-            let min_count = 3;
-            for (let i = n_cps - 1; i >= 0; --i) {
-                const dp = 3*i;
-                const z = cps[dp + 2];
-                if (z <= cam_zmin)
-                    ++count;
-                if (count >= min_count)
-                    break;
-            }
-
-            let dp = 3*n_cps;
-            while (count < min_count) {
-                const x0 = cps[dp - 3];
-                const y0 = cps[dp - 2];
-                const z0 = cps[dp - 1];
-
-                const x1 = x0 + random_gaussian(0, 5);
-                const y1 = y0 + random_gaussian(0, 5);
-                const z1 = z0 - random_gaussian(50, 0);
-
-                cps.push(x1, y1, z1);
-                dp += 3;
-                ++count;
-                dirty = true;
-            }
+        if (count > 0 && (cps.length/3 > 3)) {
+            cps.splice(0, 3*count);
+            dirty = true;
         }
-
-        //debug(`cps: ${cps.length/3}`);
     }
 
-    if (!dirty)
-        return;
+    // advance
+    {
+        // need to ensure N are <= cam_zmin
+        const n_cps = cps.length/3;
+        const min_count = 3;
+        let count = 0;
+        for (let i = n_cps - 1; i >= 0; --i) {
+            const dp = 3*i;
+            const z = cps[dp + 2];
+            if (z <= cam_zmin)
+                ++count;
+            if (count >= min_count)
+                break;
+        }
+
+        let dp = 3*n_cps;
+        while (count < min_count) {
+            const x0 = cps[dp - 3];
+            const y0 = cps[dp - 2];
+            const z0 = cps[dp - 1];
+
+            const x1 = x0 + random_gaussian(0, 5);
+            const y1 = y0 + random_gaussian(0, 5);
+            const z1 = z0 - random_gaussian(50, 0);
+
+            cps.push(x1, y1, z1);
+            dp += 3;
+            ++count;
+            dirty = true;
+        }
+    }
+
+    return dirty;
+}
+
+function rebuild_spline() {
+    const cps = spline.cps;
+    const n_cps = cps.length;
+
+    // buffer: [P...]
+    // buffer: [PtQ...]
 
     // XXX maybe only on increase?
-    //const divs = 16;
     const divs = 8;
-    if (spline.strip.length !== divs * cps.length) {
-        spline.strip = new Float32Array(divs * cps.length);
-        gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, spline.strip, gl.STATIC_DRAW);
-        //console.log('spline: realloc', spline.strip.length/3);
-    }
+    const stride = 8;
+    const n_verts = divs * n_cps;
+    const data = new Float32Array(stride * n_verts);
 
     {
-        const out = spline.strip;
         // build catrom spline
-        const n_cps = cps.length;
         let dp = 0;
+        const out = data;
         for (let i = 1; i < n_cps-2; ++i) {
             const sp0 = 3*(i-1);
             const sp1 = 3*i;
@@ -449,14 +587,68 @@ function update_spline() {
                 out[dp + 0] = b0*x0 + b1*x1 + b2*x2 + b3*x3;
                 out[dp + 1] = b0*y0 + b1*y1 + b2*y2 + b3*y3;
                 out[dp + 2] = b0*z0 + b1*z1 + b2*z2 + b3*z3;
-                dp += 3;
+                //out[dp + 3] = total_arc_length;
+
+                dp += stride;
             }
         }
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, out);
-        //console.log('spline: rebuild');
     }
+
+    {
+        const T0 = vec3.create();
+        const Q0 = quat.create();
+        const T = vec3.create();
+        const Q = quat.create();
+
+        // create quaternion frames
+        for (let i = 0; i < n_verts; ++i) {
+            const dp = stride * i;
+
+            if (i < n_verts-1) {
+                const dp2 = stride + dp;
+
+                // tangent for this segment
+                T[0] = data[dp2 + 0] - data[dp + 0];
+                T[1] = data[dp2 + 1] - data[dp + 1];
+                T[2] = data[dp2 + 2] - data[dp + 2];
+                vec3.normalize(T, T);
+
+                if (i === 0) {
+                    vec3.copy(T0, T);
+                    quat.rotationTo(Q, [0,0,1], T);
+                    quat.copy(Q0, Q);
+                } else {
+                    // compare to previous
+                    const dot = vec3.dot(T0, T);
+                    if (dot < 0.999999) {
+                        vec3.cross(Q, T0, T);
+                        Q[3] = 1 + dot;
+                        quat.normalize(Q, Q);
+                        quat.multiply(Q, Q, Q0);
+                        if (quat.dot(Q0, Q) < 0)
+                            quat.scale(Q, Q, -1);
+                    }
+                }
+            }
+
+            data[dp + 4] = Q[0];
+            data[dp + 5] = Q[1];
+            data[dp + 6] = Q[2];
+            data[dp + 7] = Q[3];
+            //console.log(Q);
+        }
+    }
+
+    {
+        gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        spline.n_verts = n_verts;
+    }
+}
+
+function update_spline() {
+    if (update_spline_cps())
+        rebuild_spline();
 }
 
 function find_or_create_new_trail() {
@@ -601,28 +793,71 @@ function draw_trails() {
 }
 
 function draw_spline() {
-    const pgm = simple_program.use();
+    if (!spline.n_verts)
+        return;
 
-    //mat4.mul(mat, mvp, mat_3d_to_2d);
+    const pgm = spline_program.use();
+    const ext = gl_ext.instanced;
+
     pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
     pgm.uniformMatrix4fv('u_view', persp.view);
-    pgm.uniform4f('u_color', 1.0, 0.8, 0.2, 1.0);
+    pgm.uniform4f('u_color0', 1.0, 0.8, 0.2, 1.0);
+    pgm.uniform4f('u_color1', 1.0, 1.0, 0.2, 1.0);
     pgm.uniform2fv('u_fogrange', get_fog_range());
 
-    // how do i draw into the ortho space?
-    const n_verts = spline.strip.length / 3;
-    if (n_verts) {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-        gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
-        pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
-        gl.lineWidth(10);
-        gl.drawArrays(gl.LINE_STRIP, 0, n_verts);
-        //pgm.uniform1f('u_pointsize', 3);
-        //gl.drawArrays(gl.POINTS, 0, n_verts);
-        gl.lineWidth(1);
-        gl.disable(gl.BLEND);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+
+    // non-instanced attrib
+    gl.bindBuffer(gl.ARRAY_BUFFER, spline.shape);
+    pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
+
+    // instanced attribs
+    gl.bindBuffer(gl.ARRAY_BUFFER, spline.buffer);
+
+    const attr_P = pgm.enableVertexAttribArray('a_P');
+    ext.vertexAttribDivisorANGLE(attr_P, 1);
+    gl.vertexAttribPointer(attr_P, 3, gl.FLOAT, false, 32, 0);
+
+    const attr_Q = pgm.enableVertexAttribArray('a_Q');
+    ext.vertexAttribDivisorANGLE(attr_Q, 1);
+    gl.vertexAttribPointer(attr_Q, 4, gl.FLOAT, false, 32, 16);
+
+    ext.drawArraysInstancedANGLE(gl.TRIANGLE_STRIP, 0, spline.n_shape_verts, spline.n_verts);
+    gl.disable(gl.CULL_FACE);
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.BLEND);
+}
+
+const proj_inv = mat4.create();
+const view_inv = mat3.create();
+
+function draw_sky() {
+    const pgm = sky_program.use();
+
+    {
+        // http://marcinignac.com/blog/pragmatic-pbr-hdr/
+        // https://www.saschawillems.de/?page_id=2122
+        // https://rauwendaal.net/2014/06/14/rendering-a-screen-covering-triangle-in-opengl/
+        const v = persp.view;
+        const b = view_inv;
+        b[0] = v[0]; b[1] = v[4]; b[2] = v[8];
+        b[3] = v[1]; b[4] = v[5]; b[5] = v[9];
+        b[6] = v[2]; b[7] = v[6]; b[8] = v[10];
+        mat4.invert(proj_inv, persp.proj);
     }
+
+    pgm.uniformMatrix4fv('u_proj_inv', proj_inv);
+    pgm.uniformMatrix3fv('u_view_inv', view_inv);
+
+    pgm.uniformSampler2D('u_texture', tex_equi);
+    pgm.uniform2f('u_resolution', canvas.width, canvas.height);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf_fstri);
+    pgm.vertexAttribPointer('a_position', 2, gl.FLOAT, false, 0, 0);
+    gl.disable(gl.CULL_FACE);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
 const V = vec3.create();
@@ -637,7 +872,7 @@ function update_player() {
     // gravity
     persp.pos[1] -= 0.3 * 0.05 * speed;
 
-    debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}`);
+    //debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}`);
 
     if (aerial)
         quat.identity(rot_target);
@@ -652,7 +887,7 @@ function animate() {
     update_player();
     update_persp();
     update_spline();
-    update_trails();
+    //update_trails();
     update_clouds(persp, false);
     draw();
 }
@@ -701,3 +936,43 @@ document.onmousewheel = e => {
     speed = clamp(speed * (1 + 0.1*dy), 1, 50);
     e.preventDefault();
 };
+
+window.addEventListener('deviceorientation', function(e) {
+    const ori = get_orientation();
+    debug(`o=${ori}  α=${e.alpha.toFixed(3)}  β=${e.beta.toFixed(3)}  γ=${e.gamma.toFixed(3)}`);
+
+    quat.identity(rot_target);
+
+    const g = e.gamma;
+    let rx = 0;
+    let rz = 0;
+    if (0 <= g & g < 90) {
+        rx = -(90 - g);
+        rz = e.beta;
+    }
+    else if (-90 <= g && g < 0) {
+        rx = -(-90 - g);
+        if (e.beta < 0)
+            rz = -180-e.beta;
+        else
+            rz = 180-e.beta;
+    }
+
+
+    rx += 10;
+
+    quat.rotateZ(rot_target, rot_target, 5*rz * DEG2RAD);
+    quat.rotateX(rot_target, rot_target, 5*rx * DEG2RAD);
+});
+
+function get_orientation() {
+    if (window.screen &&
+        window.screen.orientation &&
+        window.screen.orientation.angle !== undefined &&
+        window.screen.orientation.angle !== null)
+    {
+        return window.screen.orientation.angle;
+    }
+
+    return window.orientation || 0;
+}
