@@ -1,6 +1,6 @@
 import './reloader';
 import {mat3, mat4, vec2, vec3, vec4, quat} from 'gl-matrix';
-import {lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_size, redraw_func, $} from './utils';
+import {assert, lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_size, redraw_func, $} from './utils';
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
 import {init_clouds, update_clouds, draw_clouds} from './clouds';
 
@@ -16,6 +16,7 @@ const gl_ext = {
 let fog_enabled = true;
 let grid_enabled = true;
 let wireframe = false;
+let autopilot_enabled = false;
 
 const simple_program = create_program({
     name: 'simple',
@@ -254,6 +255,7 @@ function get_fog_range() {
 const spline = {
     cps: [0,20,200],
     buffer: create_buffer(gl.ARRAY_BUFFER),
+    debug_buffer: create_buffer(gl.ARRAY_BUFFER),
     n_shape_verts: 0,
     shape: null,
     n_verts: 0,
@@ -401,13 +403,13 @@ function draw() {
     const ch = canvas.height;
     gl.viewport(0, 0, cw, ch);
 
-    if (aerial)
+    if (aerial) {
         gl.clearColor(0, 0, 0, 1);
-    else
-        gl.clearColor(.271, .518, .706, 1)
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    draw_sky();
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    } else {
+        gl.clear(gl.DEPTH_BUFFER_BIT);
+        draw_sky();
+    }
 
     grid_enabled && draw_grid();
     //draw_trails();
@@ -415,6 +417,36 @@ function draw() {
     draw_spline();
 
     if (aerial) {
+        // draw control points
+        {
+            gl.bindBuffer(gl.ARRAY_BUFFER, spline.debug_buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(spline.cps), gl.STATIC_DRAW);
+
+            const pgm = simple_program.use();
+            pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
+            pgm.uniformMatrix4fv('u_view', persp.view);
+
+            pgm.uniform4f('u_color', 0.0, 1.0, 0.5, 0.5);
+            pgm.uniform2fv('u_fogrange', get_fog_range());
+            pgm.uniform1f('u_pointsize', 7);
+
+            pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+            gl.drawArrays(gl.LINE_STRIP, 0, spline.cps.length/3);
+            gl.drawArrays(gl.POINTS, 0, spline.cps.length/3);
+            gl.disable(gl.BLEND);
+
+            // draw closest point
+            pgm.uniform4f('u_color', 1.0, 0.0, 0.0, 0.5);
+            pgm.uniform1f('u_pointsize', 9);
+            gl.bufferSubData(gl.ARRAY_BUFFER, 0, closest_spline_pos);
+            //gl.enable(gl.BLEND);
+            //gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+            gl.drawArrays(gl.POINTS, 0, 1);
+            //gl.disable(gl.BLEND);
+        }
+
         // draw frustum
         const pgm = simple_program.use();
 
@@ -862,10 +894,11 @@ function draw_sky() {
 }
 
 const V = vec3.create();
+const Q = quat.create();
+const closest_spline_pos = vec3.create();
+let distance_from_closest_spline_pos = 0;
 
 function update_player() {
-    //const speed = 1.0;
-
     vec3.set(V, 0, 0.3, -1);
     vec3.transformQuat(V, V, persp.rot);
     vec3.scaleAndAdd(persp.pos, persp.pos, V, 0.05*speed);
@@ -873,7 +906,74 @@ function update_player() {
     // gravity
     persp.pos[1] -= 0.3 * 0.05 * speed;
 
-    //debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}`);
+    {
+        // find distance from persp.pos to closest point on spline
+        const cps = spline.cps;
+        const P = persp.pos;
+        let idx;
+        for (let i = 0; i < cps.length; ++i) {
+            const sp = 3*i;
+            if (cps[sp+2] < P[2]) {
+                idx = i;
+                break;
+            }
+        }
+
+        if (idx === 0) {
+            vec3.copy(closest_spline_pos, cps);
+        } else {
+            // interp
+            const sp0 = 3*(idx-1);
+            const sp1 = 3*idx;
+
+            const z0 = cps[sp0 + 2];
+            const z1 = cps[sp1 + 2];
+            const u = (P[2] - z0) / (z1 - z0);
+            for (let i = 0; i < 3; ++i) {
+                // what's the u value??
+                closest_spline_pos[i] = lerp(cps[sp0+i], cps[sp1+i], u);
+            }
+        }
+
+        distance_from_closest_spline_pos = vec3.dist(P, closest_spline_pos);
+    }
+
+    if (1) {
+        const P = persp.pos;
+        const cps = spline.cps;
+
+        {
+            // get average point
+            vec3.set(V, 0, 0, 0);
+            let count = 0;
+            for (let i = 2; i < 5; ++i) {
+                const sp = 3*i;
+                V[0] += cps[sp + 0];
+                V[1] += cps[sp + 1];
+                V[2] += cps[sp + 2];
+                ++count;
+            }
+            vec3.scale(V, V, 1/count);
+        }
+
+        vec3.sub(V, V, P);
+        vec3.normalize(V, V);
+        quat.rotationTo(Q, [0,0,-1], V);
+
+        //const u = clamp(distance_from_closest_spline_pos/30, 0, 1);
+        //const u = 0.5;
+        if (autopilot_enabled ||
+            (distance_from_closest_spline_pos > 10)) {
+            const u = clamp(
+                (distance_from_closest_spline_pos - 10) / 20,
+                0, 1);
+            quat.lerp(rot_target, rot_target, Q, u);
+            quat.normalize(rot_target, rot_target);
+            autopilot_enabled = true;
+        }
+    }
+
+    debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}`);
 
     if (aerial)
         quat.identity(rot_target);
@@ -902,6 +1002,8 @@ document.onmousemove = e => {
     quat.identity(rot_target);
     quat.rotateZ(rot_target, rot_target, -mx * 60 * DEG2RAD);
     quat.rotateX(rot_target, rot_target, -my * 30 * DEG2RAD);
+
+    autopilot_enabled = false;
 };
 
 document.onkeydown = e => {
@@ -928,6 +1030,11 @@ document.onkeydown = e => {
 
     if (e.code == 'KeyG') {
         grid_enabled = !grid_enabled;
+        e.preventDefault();
+    }
+
+    if (e.code == 'KeyQ') {
+        autopilot_enabled = !autopilot_enabled;
         e.preventDefault();
     }
 };
