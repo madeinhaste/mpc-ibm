@@ -939,6 +939,11 @@ document.onmousewheel = e => {
 
 window.addEventListener('deviceorientation', function(e) {
     const ori = get_orientation();
+    if (!(e.beta && e.gamma)) {
+        // no IMU
+        return;
+    }
+
     debug(`o=${ori}  α=${e.alpha.toFixed(3)}  β=${e.beta.toFixed(3)}  γ=${e.gamma.toFixed(3)}`);
 
     quat.identity(rot_target);
