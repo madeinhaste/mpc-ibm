@@ -156,10 +156,16 @@ const sky_program = create_program({
         }
     `,
     fragment: GLSL`
-        precision highp float;
+    //precision highp float;
+        precision mediump float;
         varying vec3 v_dir;
         uniform sampler2D u_texture;
         uniform vec2 u_resolution;
+
+        float random(vec2 st) {
+            return fract(sin(dot(st.xy, vec2(12.9898,78.233)))*43758.5453123);
+        }
+
         void main() {
             vec3 dir = normalize(v_dir);
             /*
@@ -169,6 +175,8 @@ const sky_program = create_program({
             uv.x = 0.0;
             */
             vec2 uv = vec2(0.0, acos(dir.y) / 3.1415926535897932384626433832795);
+            uv.y += 0.01 * random(gl_FragCoord.xy / u_resolution);
+
             //uv = gl_FragCoord.xy / u_resolution;
             vec3 C = texture2D(u_texture, uv).rgb;
             C *= 0.7;
@@ -183,7 +191,7 @@ const buf_fstri = create_buffer(gl.ARRAY_BUFFER, new Float32Array([ -1, -1, 3, -
 const tex_equi = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
 {
     const img = new Image;
-    img.src = 'images/sky.png';
+    img.src = 'images/sky3.jpg';
     img.onload = _ => {
         gl.bindTexture(gl.TEXTURE_2D, tex_equi);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
