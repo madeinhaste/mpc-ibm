@@ -13,13 +13,14 @@ const gl_ext = {
     instanced: gl.getExtension('ANGLE_instanced_arrays'),
 };
 //console.log(gl.getContextAttributes());
-let fog_enabled = false;
-let grid_enabled = true;
+let fog_enabled = true;
+let grid_enabled = false;
 let wireframe = false;
 let autopilot_enabled = false;
-let cockpit_visible = false;
-let clouds_enabled = false;
-let trails_enabled = true;
+let cockpit_visible = true;
+let clouds_enabled = true;
+let trails_enabled = false;
+let developer_enabled = false;
 show_cockpit(cockpit_visible);
 
 const simple_program = create_program({
@@ -204,7 +205,7 @@ const tex_equi = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
     };
 }
 
-let aerial = true;
+let aerial = false;
 let speed = 10.0;
 
 const persp = {
@@ -387,8 +388,16 @@ function draw() {
         draw_clouds(persp, get_fog_range(), gl_ext.instanced, wireframe);
     draw_spline();
 
-    if (trails_enabled)
-        trails.draw(persp);
+    if (trails_enabled) {
+        const env = {
+            persp: persp,
+            shape_buffer: spline.shape,
+            n_shape_verts: spline.n_shape_verts,
+            ext: gl_ext,
+            fog_range: get_fog_range(),
+        };
+        trails.draw(env);
+    }
 
     if (aerial) {
         // draw control points
@@ -826,14 +835,17 @@ document.onmousemove = e => {
 };
 
 document.onkeydown = e => {
-    if (e.code == 'KeyA') {
-        aerial = !aerial;
-        debug(aerial ? 'aerial' : 'persp');
+    if (e.code == 'KeyC') {
+        show_cockpit(cockpit_visible = !cockpit_visible);
         e.preventDefault();
     }
 
-    if (e.code == 'KeyP') {
-        request_potential();
+    if (!developer_enabled)
+        return;
+
+    if (e.code == 'KeyA') {
+        aerial = !aerial;
+        debug(aerial ? 'aerial' : 'persp');
         e.preventDefault();
     }
 
@@ -854,11 +866,6 @@ document.onkeydown = e => {
 
     if (e.code == 'KeyQ') {
         autopilot_enabled = !autopilot_enabled;
-        e.preventDefault();
-    }
-
-    if (e.code == 'KeyC') {
-        show_cockpit(cockpit_visible = !cockpit_visible);
         e.preventDefault();
     }
 };

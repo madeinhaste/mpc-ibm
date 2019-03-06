@@ -1,4 +1,4 @@
-import {vec3} from 'gl-matrix';
+import {vec3, quat} from 'gl-matrix';
 import {lerp, random_gaussian, DEG2RAD} from './utils';
 import {max_length, vertex_stride} from './trails';
 import {sample_cps} from './misc';
@@ -96,7 +96,7 @@ function generate_trail(idx, cps) {
             out[dp + 1] = P[1];
             out[dp + 2] = P[2];
             out[dp + 3] = j / (len - 1);
-            dp += 4;
+            dp += vertex_stride;
 
             // advect
             curl(V, P, noise);
@@ -128,12 +128,59 @@ function generate_trail(idx, cps) {
             vec3.lerp(VV, VV, V, 0.1);
             vec3.add(P, P, VV);
         }
+
+        calculate_frames(out);
     }
 
     return {
         idx,
         P: out.buffer,
     };
+}
+
+function calculate_frames(data) {
+    const T0 = vec3.create();
+    const Q0 = quat.create();
+    const T = vec3.create();
+    const Q = quat.create();
+
+    // create quaternion frames
+    const n_verts = data.length / vertex_stride;
+    for (let i = 0; i < n_verts; ++i) {
+        const dp = vertex_stride * i;
+        if (i < n_verts-1) {
+            const dp2 = vertex_stride + dp;
+
+            // tangent for this segment
+            T[0] = data[dp2 + 0] - data[dp + 0];
+            T[1] = data[dp2 + 1] - data[dp + 1];
+            T[2] = data[dp2 + 2] - data[dp + 2];
+            vec3.normalize(T, T);
+
+            if (i === 0) {
+                vec3.copy(T0, T);
+                quat.rotationTo(Q, [0,0,1], T);
+                quat.copy(Q0, Q);
+            } else {
+                // compare to previous
+                const dot = vec3.dot(T0, T);
+                if (dot < 0.999999) {
+                    vec3.cross(Q, T0, T);
+                    Q[3] = 1 + dot;
+                    quat.normalize(Q, Q);
+                    quat.multiply(Q, Q, Q0);
+                    if (quat.dot(Q0, Q) < 0)
+                        quat.scale(Q, Q, -1);
+                }
+            }
+        }
+
+        data[dp + 4] = Q[0];
+        data[dp + 5] = Q[1];
+        data[dp + 6] = Q[2];
+        data[dp + 7] = Q[3];
+        //console.log(Q);
+    }
 }
 
 var dPdx = vec3.create();
