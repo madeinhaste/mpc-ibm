@@ -1,6 +1,7 @@
 import {vec3} from 'gl-matrix';
 import {lerp, random_gaussian} from './utils';
 import {max_length, vertex_stride} from './trails';
+import {sample_cps} from './misc';
 
 console.log('hello from trails-worker');
 

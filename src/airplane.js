@@ -4,6 +4,7 @@ import {assert, lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_s
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
 import {init_clouds, update_clouds, draw_clouds} from './clouds';
 import {init_trails} from './trails';
+import {sample_cps} from './misc';
 
 const canvas = $('canvas');
 const gl = create_gl(canvas);
@@ -179,7 +180,7 @@ const sky_program = create_program({
             */
             vec2 uv = vec2(0.0, acos(dir.y) / 3.1415926535897932384626433832795);
             uv.y += 0.01 * random(gl_FragCoord.xy / u_resolution);
-
+            
             //uv = gl_FragCoord.xy / u_resolution;
             vec3 C = texture2D(u_texture, uv).rgb;
             C *= 0.7;
@@ -734,40 +735,6 @@ const V = vec3.create();
 const Q = quat.create();
 const closest_spline_pos = vec3.create();
 let distance_from_closest_spline_pos = 0;
-
-function sample_cps(out, cps, zc) {
-    if (!cps.length) {
-        vec3.set(out, 0, 0, 0);
-        return;
-    }
-
-    let i;
-    for (i = 0; i < cps.length; i += 3) {
-        const z = cps[i + 2];
-        if (z < zc)
-            break;
-    }
-
-    if (i === 0) {
-        vec3.copy(out, cps);
-        return;
-    }
-
-    if (i === cps.length) {
-        out[0] = cps[i - 3];
-        out[1] = cps[i - 2];
-        out[2] = cps[i - 1];
-        return;
-    }
-
-    const z0 = cps[i - 1];
-    const z1 = cps[i + 2];
-    const u = (zc - z0) / (z1 - z0);
-
-    out[0] = lerp(cps[i - 3], cps[i + 0], u);
-    out[1] = lerp(cps[i - 2], cps[i + 1], u);
-    out[2] = lerp(cps[i - 1], cps[i + 2], u);
-}
 
 function update_player() {
     vec3.set(V, 0, 0.3, -1);
