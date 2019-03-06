@@ -6,13 +6,17 @@ const STATE_DEAD = 0;
 const STATE_PENDING = 1;
 const STATE_ALIVE = 2;
 
-const max_length = 256;
-const max_count = 16;
-const vertex_stride = 4;
+export const max_length = 256;
+export const max_count = 16;
+export const vertex_stride = 4;
 
 let trails = [];
 let vertex_data;
 let vertex_buffer;
+let next_request_time = 0;
+const request_interval = 300;
+
+const worker = new Worker('./bundles/trails-worker.bundle.js');
 
 export function init_trails() {
     vertex_data = new Float32Array(vertex_stride * max_length * max_count);
@@ -29,6 +33,8 @@ export function init_trails() {
     }
 
     function update(persp, cps) {
+        const now = performance.now();
+
         const zmax = persp.pos[2] + persp.zrange[0];
         let requested_idxs = []
         for (let i = 0; i < max_count; ++i) {
@@ -42,17 +48,17 @@ export function init_trails() {
                 trail.state = STATE_DEAD;
             }
 
-            if (trail.state === STATE_DEAD && Math.random() < 0.01) {
+            if (trail.state === STATE_DEAD &&
+                now > next_request_time)
+            {
                 trail.state = STATE_PENDING;
+                next_request_time += request_interval;
                 requested_idxs.push(i);
             }
         }
 
         if (requested_idxs.length) {
-            request_trails({
-                cps,
-                idxs: requested_idxs,
-            });
+            worker.postMessage({ cps, idxs: requested_idxs });
         }
     }
 
@@ -120,59 +126,7 @@ export function init_trails() {
     return { update, draw };
 }
 
-function request_trails(msg) {
-    const cps = msg.cps;
-    const C = vec3.create();
-
-    {
-        // end point
-        const sp = cps.length - 3;
-        C[0] = cps[sp + 0];
-        C[1] = cps[sp + 1];
-        C[2] = cps[sp + 2];
-        console.log('end:', vec3.str(C));
-    }
-
-    const P = vec3.create();
-
-    for (let i = 0; i < msg.idxs.length; ++i) {
-        const idx = msg.idxs[i];
-        const delay = ~~lerp(500, 1000, Math.random());
-        const len = ~~lerp(50, max_length, Math.random());
-        const out = new Float32Array(vertex_stride * len);
-
-        {
-            vec3.copy(P, C);
-            P[0] += random_gaussian(0, 50);
-            P[1] += random_gaussian(0, 50);
-            P[2] += random_gaussian(0, 50);
-
-            let dp = 0;
-            for (let j = 0; j < len; ++j) {
-                out[dp + 0] = P[0];
-                out[dp + 1] = P[1];
-                out[dp + 2] = P[2];
-                out[dp + 3] = j / (len - 1);
-                dp += 4;
-
-                // advect
-                P[0] += random_gaussian(0, 1);
-                P[1] += random_gaussian(0, 1);
-                P[2] += random_gaussian(1, 2);
-            }
-        }
-
-        const data = { idx, P: out.buffer };
-        post_message(data, delay);
-    }
-}
-
-function post_message(data, delay) {
-    const e = { data };
-    setTimeout(onmessage.bind(null, e), delay);
-}
-
-function onmessage(e) {
+worker.onmessage = function(e) {
     const idx = e.data.idx;
     const P = new Float32Array(e.data.P);
 
@@ -198,4 +152,4 @@ function onmessage(e) {
 
     trail.state = STATE_ALIVE;
     //console.log('new trail:', idx, trail.length, trail.zmax);
-}
+};
