@@ -16,6 +16,7 @@ let fog_enabled = true;
 let grid_enabled = true;
 let wireframe = false;
 let autopilot_enabled = false;
+let cockpit_visible = true;
 
 const simple_program = create_program({
     name: 'simple',
@@ -852,6 +853,12 @@ document.onkeydown = e => {
 
     if (e.code == 'KeyQ') {
         autopilot_enabled = !autopilot_enabled;
+        e.preventDefault();
+    }
+
+    if (e.code == 'KeyC') {
+        cockpit_visible = !cockpit_visible;
+        $('.cockpit').style.display = cockpit_visible ? 'block' : 'none';
         e.preventDefault();
     }
 };

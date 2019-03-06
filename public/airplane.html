@@ -17,14 +17,26 @@ canvas {
     background-color: black;
 }
 
+.cockpit {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: url( images/cockpit.png );
+    background-position: center;
+    background-size: cover;
+}
+
 .debug {
     position: absolute;
-    top: 10px; left: 10px;
+    /* top: 10px; left: 10px; */
     font-size: 20px;
     white-space: pre-line;
+    top: 0; left: 0;
+    padding: 4px 8px;
+    background-color: rgba(0,0,0, 0.5);
 }
 </style>
 <script src=bundles/airplane.bundle.js defer></script>
 <body>
 <canvas></canvas>
+<div class=cockpit></div>
 <div class=debug></div>
