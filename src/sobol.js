@@ -4,9 +4,10 @@ const SCALE = 2 << 51;
 const MAX_DIMENSION = 21201;
 
 let data;
-export const ready = fetch('data/new-joe-kuo-6.21201.txt')
+export const ready = fetch('../data/new-joe-kuo-6.21201.txt')
     .then(r => r.text())
     .then(text => {
+        //console.log(text);
         data = text;
         return SobolSequenceGenerator;
     });

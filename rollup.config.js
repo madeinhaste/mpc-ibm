@@ -26,11 +26,11 @@ const bundle = name => config(
 );
 
 module.exports = [
-    'plane',
-    'plane-gl',
-    'trail.worker',
-    'trail-worker-3d',
+    //'plane',
+    //'plane-gl',
+    //'trail.worker',
+    //'trail-worker-3d',
+    //'turblines2d',
     'airplane',
-    'turblines2d',
     'trails-worker',
 ].map(bundle);
