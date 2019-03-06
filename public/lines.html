@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset=UTF-8>
+<meta name=viewport content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1">
+<title>mpc-ibm|turbulence lines</title>
+<link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans" rel=stylesheet>
+<script src=bundles/turblines2d.bundle.js defer></script>
+<style>
+html, body {
+    background-color: black;
+    color: white;
+    font-family: 'IBM Plex Sans';
+}
+
+canvas {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: black;
+}
+
+.debug {
+    position: absolute;
+    top: 10px; left: 10px;
+    font-size: 20px;
+    white-space: pre-line;
+}
+</style>
+<body>
+<canvas></canvas>
+<div class=debug></div>

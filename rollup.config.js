@@ -31,4 +31,5 @@ module.exports = [
     'trail.worker',
     'trail-worker-3d',
     'airplane',
+    'turblines2d',
 ].map(bundle);
