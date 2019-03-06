@@ -685,6 +685,11 @@ function draw_spline() {
     gl.vertexAttribPointer(attr_Q, 4, gl.FLOAT, false, 32, 16);
 
     ext.drawArraysInstancedANGLE(gl.TRIANGLE_STRIP, 0, spline.n_shape_verts, spline.n_verts);
+
+    // reset divisors
+    ext.vertexAttribDivisorANGLE(attr_P, 0);
+    ext.vertexAttribDivisorANGLE(attr_Q, 0);
+
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
