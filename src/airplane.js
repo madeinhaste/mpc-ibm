@@ -12,11 +12,14 @@ const gl_ext = {
     instanced: gl.getExtension('ANGLE_instanced_arrays'),
 };
 //console.log(gl.getContextAttributes());
-let fog_enabled = true;
+let fog_enabled = false;
 let grid_enabled = true;
 let wireframe = false;
 let autopilot_enabled = false;
-let cockpit_visible = true;
+let cockpit_visible = false;
+let clouds_enabled = false;
+let trails_enabled = true;
+show_cockpit(cockpit_visible);
 
 const simple_program = create_program({
     name: 'simple',
@@ -379,9 +382,12 @@ function draw() {
     }
 
     grid_enabled && draw_grid();
-    //draw_clouds(persp, get_fog_range(), gl_ext.instanced, wireframe);
+    if (clouds_enabled)
+        draw_clouds(persp, get_fog_range(), gl_ext.instanced, wireframe);
     draw_spline();
-    trails.draw(persp);
+
+    if (trails_enabled)
+        trails.draw(persp);
 
     if (aerial) {
         // draw control points
@@ -832,8 +838,10 @@ function animate() {
     update_player();
     update_persp();
     update_spline();
-    update_clouds(persp, false);
-    trails.update(persp, spline.cps);
+    if (clouds_enabled)
+        update_clouds(persp, false);
+    if (trails_enabled)
+        trails.update(persp, spline.cps);
     draw();
 }
 
@@ -883,8 +891,7 @@ document.onkeydown = e => {
     }
 
     if (e.code == 'KeyC') {
-        cockpit_visible = !cockpit_visible;
-        $('.cockpit').style.display = cockpit_visible ? 'block' : 'none';
+        show_cockpit(cockpit_visible = !cockpit_visible);
         e.preventDefault();
     }
 };
@@ -940,4 +947,8 @@ function get_orientation() {
     }
 
     return window.orientation || 0;
+}
+
+function show_cockpit(show) {
+    $('.cockpit').style.display = show ? 'block' : 'none';
 }
