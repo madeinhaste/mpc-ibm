@@ -729,6 +729,40 @@ const Q = quat.create();
 const closest_spline_pos = vec3.create();
 let distance_from_closest_spline_pos = 0;
 
+function sample_cps(out, cps, zc) {
+    if (!cps.length) {
+        vec3.set(out, 0, 0, 0);
+        return;
+    }
+
+    let i;
+    for (i = 0; i < cps.length; i += 3) {
+        const z = cps[i + 2];
+        if (z < zc)
+            break;
+    }
+
+    if (i === 0) {
+        vec3.copy(out, cps);
+        return;
+    }
+
+    if (i === cps.length) {
+        out[0] = cps[i - 3];
+        out[1] = cps[i - 2];
+        out[2] = cps[i - 1];
+        return;
+    }
+
+    const z0 = cps[i - 1];
+    const z1 = cps[i + 2];
+    const u = (zc - z0) / (z1 - z0);
+
+    out[0] = lerp(cps[i - 3], cps[i + 0], u);
+    out[1] = lerp(cps[i - 2], cps[i + 1], u);
+    out[2] = lerp(cps[i - 1], cps[i + 2], u);
+}
+
 function update_player() {
     vec3.set(V, 0, 0.3, -1);
     vec3.transformQuat(V, V, persp.rot);
@@ -738,42 +772,17 @@ function update_player() {
     persp.pos[1] -= 0.3 * 0.05 * speed;
 
     {
-        // find distance from persp.pos to closest point on spline
-        const cps = spline.cps;
         const P = persp.pos;
-        let idx;
-        for (let i = 0; i < cps.length; ++i) {
-            const sp = 3*i;
-            if (cps[sp+2] < P[2]) {
-                idx = i;
-                break;
-            }
-        }
-
-        if (idx === 0) {
-            vec3.copy(closest_spline_pos, cps);
-        } else {
-            // interp
-            const sp0 = 3*(idx-1);
-            const sp1 = 3*idx;
-
-            const z0 = cps[sp0 + 2];
-            const z1 = cps[sp1 + 2];
-            const u = (P[2] - z0) / (z1 - z0);
-            for (let i = 0; i < 3; ++i) {
-                // what's the u value??
-                closest_spline_pos[i] = lerp(cps[sp0+i], cps[sp1+i], u);
-            }
-        }
-
+        sample_cps(closest_spline_pos, spline.cps, P[2]);
         distance_from_closest_spline_pos = vec3.dist(P, closest_spline_pos);
+        //console.log(vec3.str(closest_spline_pos), distance_from_closest_spline_pos);
     }
 
     if (1) {
         const P = persp.pos;
         const cps = spline.cps;
 
-        {
+        if (cps.length >= (3*5)) {
             // get average point
             vec3.set(V, 0, 0, 0);
             let count = 0;
@@ -785,22 +794,26 @@ function update_player() {
                 ++count;
             }
             vec3.scale(V, V, 1/count);
-        }
 
-        vec3.sub(V, V, P);
-        vec3.normalize(V, V);
-        quat.rotationTo(Q, [0,0,-1], V);
+            vec3.sub(V, V, P);
+            //console.log(vec3.str(V));
+            vec3.normalize(V, V);
+            quat.rotationTo(Q, [0,0,-1], V);
 
-        //const u = clamp(distance_from_closest_spline_pos/30, 0, 1);
-        //const u = 0.5;
-        if (autopilot_enabled ||
-            (distance_from_closest_spline_pos > 10)) {
-            const u = clamp(
-                (distance_from_closest_spline_pos - 10) / 20,
-                0, 1);
-            quat.lerp(rot_target, rot_target, Q, u);
-            quat.normalize(rot_target, rot_target);
-            autopilot_enabled = true;
+            //const u = clamp(distance_from_closest_spline_pos/30, 0, 1);
+            //const u = 0.5;
+            if (autopilot_enabled ||
+                (distance_from_closest_spline_pos > 10)) {
+                const u = clamp(
+                    (distance_from_closest_spline_pos - 10) / 20,
+                    0, 1);
+                if (u > 0) {
+                    //console.log(Q);
+                    quat.lerp(rot_target, rot_target, Q, u);
+                    quat.normalize(rot_target, rot_target);
+                    autopilot_enabled = true;
+                }
+            }
         }
     }
 
