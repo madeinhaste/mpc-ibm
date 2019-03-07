@@ -836,7 +836,7 @@ document.onmousemove = e => {
 
 document.onkeydown = e => {
     if (e.code == 'KeyC') {
-        show_cockpit(cockpit_visible = !cockpit_visible);
+        toggle_cockpit();
         e.preventDefault();
     }
 
@@ -870,11 +870,11 @@ document.onkeydown = e => {
     }
 };
 
-document.onmousewheel = e => {
+document.addEventListener('mousewheel', e => {
     const dy = -e.deltaY/53;
     speed = clamp(speed * (1 + 0.1*dy), 1, 50);
-    e.preventDefault();
-};
+    //e.preventDefault();
+}, {passive: true});
 
 window.addEventListener('deviceorientation', function(e) {
     const ori = get_orientation();
@@ -923,6 +923,14 @@ function get_orientation() {
     return window.orientation || 0;
 }
 
+canvas.addEventListener('touchstart', e => {
+    toggle_cockpit();
+}, {passive: true});
+
 function show_cockpit(show) {
     $('.cockpit').style.display = show ? 'block' : 'none';
+}
+
+function toggle_cockpit() {
+    show_cockpit(cockpit_visible = !cockpit_visible);
 }
