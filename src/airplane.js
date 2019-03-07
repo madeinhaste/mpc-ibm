@@ -6,6 +6,7 @@ import {init_clouds, update_clouds, draw_clouds} from './clouds';
 import {init_trails} from './trails';
 import {sample_cps} from './misc';
 import {Howl, Howler} from 'howler';
+import SimplexNoise from 'simplex-noise';
 
 const canvas = $('canvas');
 const gl = create_gl(canvas);
@@ -221,6 +222,13 @@ const tex_equi = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
 
 let aerial = false;
 let speed = 3.0;
+
+const shake = {
+    amount: 0,
+    noise: Noise(1, 3),
+    pos: vec3.create(),
+    rot: quat.create(),
+};
 
 const persp = {
     pos: vec3.create(),
@@ -471,8 +479,12 @@ const mat_3d_to_2d = mat4.fromValues(
 );
 
 function update_persp() {
+    vec3.add(shake.pos, persp.pos, shake.pos);
+    quat.mul(shake.rot, persp.rot, shake.rot);
+
     // view matrix
-    mat4.fromRotationTranslation(persp.view, persp.rot, persp.pos);
+    //mat4.fromRotationTranslation(persp.view, persp.rot, persp.pos);
+    mat4.fromRotationTranslation(persp.view, shake.rot, shake.pos);
     mat4.invert(persp.view, persp.view);
 
     // projection matrix
@@ -774,6 +786,23 @@ function update_player() {
         //console.log(vec3.str(closest_spline_pos), distance_from_closest_spline_pos);
     }
 
+    // shake
+    {
+        const P = persp.pos;
+        //shake.pos[1] = shake.noise.noise2D(P[1], P[2]);
+        vec3.set(shake.pos, 0,0,0);
+        const freq = 0.1;
+        const amp = shake.amount;
+
+        shake.pos[1] = amp * shake.noise(freq*P[1], freq*P[2]);
+
+        quat.identity(shake.rot);
+        quat.rotateZ(shake.rot, shake.rot,
+            amp * 0.03 * shake.noise(0.293*freq*P[1], 0.8129*freq*P[2]));
+        quat.rotateX(shake.rot, shake.rot,
+            amp * 0.01 * shake.noise(0.738*freq*P[1], 0.392*freq*P[2]));
+    }
+
     if (1) {
         const P = persp.pos;
         const cps = spline.cps;
@@ -795,6 +824,17 @@ function update_player() {
             //console.log(vec3.str(V));
             vec3.normalize(V, V);
             quat.rotationTo(Q, [0,0,-1], V);
+
+            {
+                let d = (distance_from_closest_spline_pos - 3) / 10;
+                if (d > 0) {
+                    shake.amount = lerp(shake.amount, d * 3.0, 0.5);
+                } else {
+                    shake.amount *= 0.5;
+                    if (shake.amount < 0.01)
+                        shake.amount = 0;
+                }
+            }
 
             //const u = clamp(distance_from_closest_spline_pos/30, 0, 1);
             //const u = 0.5;
@@ -822,7 +862,7 @@ function update_player() {
         }
     }
 
-    debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}`);
+    debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}  shake: ${shake.amount.toFixed(3)}`);
 
     if (aerial)
         quat.identity(rot_target);
@@ -956,4 +996,30 @@ function show_cockpit(show) {
 
 function toggle_cockpit() {
     show_cockpit(cockpit_visible = !cockpit_visible);
+}
+
+function Noise(scale=1, octaves=1) {
+    const simplex = new SimplexNoise();
+
+    let max_v = 0;
+    {
+        let amp = 1.0;
+        for (let oc = 0; oc < octaves; ++oc) {
+            max_v += amp;
+            amp *= 0.5;
+        }
+    }
+
+    return function(x, y) {
+        let v = 0.0;
+        let amp = 1.0;
+        let scl = scale;
+        for (let oc = 0; oc < octaves; ++oc) {
+            v += amp * simplex.noise2D(scl*x, scl*y);
+            amp *= 0.5;
+            scl *= 2.0;
+        }
+        v /= max_v;
+        return v;
+    };
 }
