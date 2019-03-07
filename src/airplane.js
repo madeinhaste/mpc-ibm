@@ -567,8 +567,11 @@ function update_spline_cps() {
             const y0 = cps[dp - 2];
             const z0 = cps[dp - 1];
 
+            const ymin = 5;
+            const ymax = 50;
+
             const x1 = x0 + random_gaussian(0, 5);
-            const y1 = y0 + random_gaussian(0, 5);
+            const y1 = clamp(y0 + random_gaussian(0, 5), ymin, ymax);
             const z1 = z0 - random_gaussian(50, 0);
 
             cps.push(x1, y1, z1);
