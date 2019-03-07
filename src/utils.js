@@ -3,6 +3,16 @@ import {Ziggurat} from './ziggurat';
 export const $ = s => document.querySelector(s);
 export const $$ = s => document.querySelectorAll(s);
 
+export const HTML = (chunks, ...args) => {
+    let html = '';
+    chunks.forEach((chunk, i) => {
+        html += chunk + (args[i] || '');
+    });
+    const t = document.createElement('template');
+    t.innerHTML = html.trim();
+    return t.content.firstChild;
+};
+
 export function redraw_func(callback) {
     let queued = false;
     return function redraw() {
