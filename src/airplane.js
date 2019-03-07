@@ -19,7 +19,7 @@ let wireframe = false;
 let autopilot_enabled = false;
 let cockpit_visible = true;
 let clouds_enabled = true;
-let trails_enabled = false;
+let trails_enabled = true;
 let developer_enabled = false;
 show_cockpit(cockpit_visible);
 
@@ -184,7 +184,7 @@ const sky_program = create_program({
             
             //uv = gl_FragCoord.xy / u_resolution;
             vec3 C = texture2D(u_texture, uv).rgb;
-            C *= 0.7;
+            C *= 0.5;
             gl_FragColor = vec4(C, 1.0);
             //gl_FragColor.rg = uv;
         }
@@ -206,7 +206,7 @@ const tex_equi = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
 }
 
 let aerial = false;
-let speed = 10.0;
+let speed = 3.0;
 
 const persp = {
     pos: vec3.create(),

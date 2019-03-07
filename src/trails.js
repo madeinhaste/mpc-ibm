@@ -7,7 +7,7 @@ const STATE_PENDING = 1;
 const STATE_ALIVE = 2;
 
 export const max_length = 256;
-export const max_count = 16;
+export const max_count = 32;
 export const vertex_stride = 16;
 
 let trails = [];
@@ -15,8 +15,30 @@ let vertex_data;
 let vertex_buffer;
 let next_request_time = 0;
 const request_interval = 300;
+let time = 0.0;
 
 const worker = new Worker('./bundles/trails-worker.bundle.js');
+
+function make_palette(aa, bb, cc, dd) {
+    function expand(v) {
+        if (Array.isArray(v))
+            return [v[0], v[1], v[2]];
+        else
+            return [v, v, v];
+    }
+
+    var a = expand(aa);
+    var b = expand(bb);
+    var c = expand(cc);
+    var d = expand(dd);
+
+    return function(out, t) {
+        for (var i = 0; i < 3; ++i)
+            out[i] = a[i] + b[i] * Math.cos(2*Math.PI * (c[i]*t + d[i]));
+        return out;
+    }
+}
+const palette = make_palette(0.5, 0.5, 1, [0, 0.33, 0.67]);
 
 export function init_trails() {
     vertex_data = new Float32Array(vertex_stride * max_length * max_count);
@@ -28,7 +50,10 @@ export function init_trails() {
             state: STATE_DEAD,
             zmin: 0,
             length: 0,
+            color: vec3.create(),
+            time_offset: Math.random(),
         };
+        palette(trail.color, Math.random());
         trails.push(trail);
     }
 
@@ -67,6 +92,7 @@ export function init_trails() {
         vertex: GLSL`
             attribute vec3 a_position;
             uniform mat4 u_mvp;
+
             //varying float v_fog;
             //uniform mat4 u_view;
             //uniform vec2 u_fogrange;
@@ -107,11 +133,14 @@ export function init_trails() {
             attribute vec4 a_P;
             attribute vec4 a_Q;
 
+            varying vec2 v_coord;
             varying float v_fog;
+
             uniform mat4 u_mvp;
             uniform mat4 u_view;
             uniform vec2 u_fogrange;
             uniform vec2 u_scale;
+            uniform float u_time_offset;
 
             vec3 transform_quat(vec3 v, vec4 q) {
                 vec3 t = 2.0 * cross(q.xyz, v);
@@ -128,8 +157,20 @@ export function init_trails() {
                     Q = a_Q;
                     P = a_P.xyz;
                     time = abs(a_P.w);
+                    time = fract(-time + u_time_offset);
+                    time = smoothstep(0.0, 0.3, time);
                     side = sign(a_P.w);
-                    P += 0.001*transform_quat(u_scale.x * vec3(side, 0, 0), Q);
+
+                    float scl = u_scale.x;
+
+                    {
+                        scl *= (1.0 - 4.0*pow(time - 0.5, 2.0));
+                    }
+
+                    P += transform_quat(scl * vec3(side, 0, 0), Q);
+
+                    v_coord[0] = 0.5*(side + 1.0);
+                    v_coord[1] = time;
                 }
 
                 {
@@ -138,20 +179,28 @@ export function init_trails() {
                         (z - u_fogrange[0]) / (u_fogrange[1] - u_fogrange[0]),
                         0.0,
                         1.0);
-                    v_fog = fog * fog;
+                    v_fog = fog;
                 }
 
                 gl_Position = u_mvp * vec4(P, 1.0);
+                gl_PointSize = 3.0;
             }
         `,
         fragment: GLSL`
             precision highp float;
             varying float v_fog;
-            uniform vec4 u_color0;
-            uniform vec4 u_color1;
+            varying vec2 v_coord;
+            uniform vec3 u_color;
 
             void main() {
-                gl_FragColor = v_fog * vec4(0,0,0,1);
+                float a = 2.0*(v_coord.x - 0.5);
+                a = 1.0 - a*a;
+                gl_FragColor = vec4(u_color, a * v_fog);
+                /*
+                gl_FragColor = vec4(
+                    vec3(1.0-(0.3*v_fog)),
+                    1.0);
+                    */
             }
         `,
     });
@@ -179,6 +228,7 @@ export function init_trails() {
     }
 
     function draw2(env) {
+        time += 0.005;
         const pgm = trails2_program.use();
         //const ext = env.ext.instanced;
 
@@ -187,11 +237,11 @@ export function init_trails() {
         //pgm.uniform4f('u_color0', 0.0, 0.8, 1.0, 1.0);
         //pgm.uniform4f('u_color1', 0.5, 0.2, 0.4, 1.0);
         pgm.uniform2fv('u_fogrange', env.fog_range);
-        pgm.uniform2f('u_scale', 1.0, 1.0);
+        pgm.uniform2f('u_scale', 0.5, 1.0);
 
         gl.enable(gl.BLEND);
-        //gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.blendFunc(gl.DST_COLOR, gl.ZERO);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+        //gl.blendFunc(gl.DST_COLOR, gl.ZERO);
         //gl.enable(gl.DEPTH_TEST);
         //gl.enable(gl.CULL_FACE);
         //gl.disable(gl.CULL_FACE);
@@ -202,7 +252,6 @@ export function init_trails() {
 
         // instanced attribs
         gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-        const byte_stride = vertex_stride << 2;
 
         const attr_P = pgm.enableVertexAttribArray('a_P');
         //ext.vertexAttribDivisorANGLE(attr_P, 1);
@@ -216,19 +265,23 @@ export function init_trails() {
             if (trail.state !== STATE_ALIVE)
                 continue;
 
+            pgm.uniform3fv('u_color', trail.color);
+            pgm.uniform1f('u_time_offset', time + trail.time_offset);
+
             //const start = i * max_length;
             //const count = trail.length;
             //console.log('draw:', start, count);
             //gl.drawArrays(gl.LINE_STRIP, start, count);
 
-            const byte_offset = vertex_stride * max_length * i;
-            const count = trail.length;
+            const byte_offset = 4 * vertex_stride * max_length * i;
+            const byte_stride = 4 * (vertex_stride >> 1);
+            const count = trail.length << 1;
 
-            const byte_stride = vertex_stride;
-            gl.vertexAttribPointer(attr_P, 3, gl.FLOAT, false, byte_stride, byte_offset + 0);
+            gl.vertexAttribPointer(attr_P, 4, gl.FLOAT, false, byte_stride, byte_offset + 0);
             gl.vertexAttribPointer(attr_Q, 4, gl.FLOAT, false, byte_stride, byte_offset + 16);
             //ext.drawArraysInstancedANGLE(gl.TRIANGLE_STRIP, 0, env.n_shape_verts, count);
-            gl.drawArrays(gl.LINE_STRIP, 0, count);
+            //gl.drawArrays(gl.LINE_STRIP, 0, count);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, count);
         }
         // reset divisors
         //ext.vertexAttribDivisorANGLE(attr_P, 0);
@@ -247,7 +300,7 @@ worker.onmessage = function(e) {
     const P = new Float32Array(e.data.P);
 
     // duplicate verts
-    {
+    if (1) {
         for (let dp = 0; dp < P.length; dp += vertex_stride) {
             let dp2 = dp + 8;
             P[dp2++] = P[dp + 0];
@@ -264,6 +317,7 @@ worker.onmessage = function(e) {
     const trail = trails[idx];
     assert(trail.state === STATE_PENDING);
     trail.length = P.length / vertex_stride;
+    trail.time_offset = -time;
 
     {
         // get the z coord of last vertex

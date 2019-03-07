@@ -32,7 +32,10 @@ const VV = vec3.create();
 const tunnel_radius = 50;
 const noise = Noise(0.005, 2);
 
+const turb_noise = new SimplexNoise();
+
 function generate_trail(idx, cps) {
+
     {
         // end point
         const sp = cps.length - 3;
@@ -41,9 +44,15 @@ function generate_trail(idx, cps) {
         C[2] = cps[sp + 2];
     }
 
+    let turb;
+    {
+        const k = 0.01;
+        turb = turb_noise.noise2D(k*C[0], k*C[2]);
+        //console.log(turb);
+    }
 
-    const len = ~~lerp(50, max_length, Math.random());
-    //const len = max_length;
+    //const len = ~~lerp(50, max_length, Math.random());
+    const len = max_length;
     const out = new Float32Array(vertex_stride * len);
 
     {
@@ -66,12 +75,16 @@ function generate_trail(idx, cps) {
             {
                 // sample polar
                 let u, v
-                if (sobol) {
+                    /*
+                if (1 || !sobol) {
                     u = Math.random();
                     v = Math.random();
                 } else {
                     [u, v] = sobol.nextVector();
                 }
+                */
+                u = Math.random();
+                v = Math.random();
 
                 theta = u * 2 * Math.PI;
                 r = tunnel_radius * lerp(1, 1.5, v);
@@ -95,12 +108,12 @@ function generate_trail(idx, cps) {
             out[dp + 0] = P[0];
             out[dp + 1] = P[1];
             out[dp + 2] = P[2];
-            out[dp + 3] = j / (len - 1);
+            out[dp + 3] = (j+1) / len;
             dp += vertex_stride;
 
             // advect
             curl(V, P, noise);
-            vec3.scale(V, V, 100);
+            vec3.scale(V, V, 100 * (turb*turb));
             //vec3.set(V, 0,0,0);
             //V[0] = 0;
             //V[1] = 0;
@@ -110,9 +123,9 @@ function generate_trail(idx, cps) {
             //V[1] += random_gaussian(0, 3);
             //V[2] += random_gaussian(1, 2);
 
-            //V[2] += 1.0;
+            V[2] += 2.0;
 
-            {
+            if (1) {
                 // avoid tunnel
                 sample_cps(Q, cps, P[2]);
                 vec3.sub(Q, P, Q);
@@ -160,6 +173,7 @@ function calculate_frames(data) {
             if (i === 0) {
                 vec3.copy(T0, T);
                 quat.rotationTo(Q, [0,0,1], T);
+                quat.rotateZ(Q, Q, Math.random() * 2*Math.PI);
                 quat.copy(Q0, Q);
             } else {
                 // compare to previous
@@ -237,12 +251,12 @@ function Noise(scale=1, octaves=1) {
         }
     }
 
-    return function(x, y) {
+    return function(x, y, z) {
         let v = 0.0;
         let amp = 1.0;
         let scl = scale;
         for (let oc = 0; oc < octaves; ++oc) {
-            v += amp * simplex.noise2D(scl*x, scl*y);
+            v += amp * simplex.noise3D(scl*x, scl*y, scl*z);
             amp *= 0.5;
             scl *= 2.0;
         }
