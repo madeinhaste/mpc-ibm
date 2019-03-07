@@ -5,6 +5,7 @@ import {create_gl, create_buffer, create_program, create_texture, GLSL} from './
 import {init_clouds, update_clouds, draw_clouds} from './clouds';
 import {init_trails} from './trails';
 import {sample_cps} from './misc';
+import {Howl, Howler} from 'howler';
 
 const canvas = $('canvas');
 const gl = create_gl(canvas);
@@ -22,6 +23,19 @@ let clouds_enabled = true;
 let trails_enabled = true;
 let developer_enabled = false;
 show_cockpit(cockpit_visible);
+
+const sounds = {
+    ambience: new Howl({
+        src: ['sounds/ambience.mp4'],
+        autoplay: true,
+        loop: true,
+    }),
+    bing: new Howl({
+        src: ['sounds/bing.mp4'],
+    }),
+};
+let next_bing_time = 0;
+const bing_interval = 3000;
 
 const simple_program = create_program({
     name: 'simple',
@@ -786,6 +800,15 @@ function update_player() {
             //const u = 0.5;
             if (autopilot_enabled ||
                 (distance_from_closest_spline_pos > 10)) {
+
+                if (distance_from_closest_spline_pos > 15) {
+                    const now = performance.now();
+                    if (now > next_bing_time) {
+                        sounds.bing.play();
+                        next_bing_time = now + bing_interval;
+                    }
+                }
+
                 const u = clamp(
                     (distance_from_closest_spline_pos - 10) / 20,
                     0, 1);
