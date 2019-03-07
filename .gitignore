@@ -2,6 +2,7 @@ node_modules
 public/bundles
 public/videos
 public/images
+public/sounds
 notes
 dist
 tmp
