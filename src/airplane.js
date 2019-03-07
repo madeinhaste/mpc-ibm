@@ -259,6 +259,12 @@ const spline = {
 };
 
 {
+    // initialize spline and player position
+    update_spline_cps();
+    sample_cps(persp.pos, spline.cps, persp.pos[2]);
+}
+
+{
     const v = [];
     const n = 32;
 
