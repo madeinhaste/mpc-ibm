@@ -21,8 +21,10 @@ cp -a public/sounds/* dist/sounds/
 cp -a public/bundles/cimon-app.bundle.js dist/bundles/
 cp -a public/bundles/cimon-lipsync.bundle.js dist/bundles/
 mkdir -p dist/images/cimon/faces
+mkdir -p dist/images/cimon/envmap
 cp -a public/images/cimon/*.{png,jpg} dist/images/cimon/
 cp -a public/images/cimon/faces/*.png dist/images/cimon/faces/
+cp -a public/images/cimon/envmap/*.png dist/images/cimon/envmap/
 
 archive=dist-`date +%y%m%d`.zip
 zip -r "$archive" dist/

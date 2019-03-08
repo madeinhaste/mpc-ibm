@@ -58,7 +58,7 @@ const env = {
     pickray: new PickRay(camera),
 
     light: {
-        pos: vec3.fromValues(10, 10, 100),
+        pos: vec3.fromValues(300, 30, 100),
     },
 };
 

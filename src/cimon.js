@@ -81,7 +81,9 @@ export function init_cimon(gl_ext) {
     const textures = {
         color: load_texture('images/cimon/grp016_AlbedoM.png', aniso),
         normal: load_texture('images/cimon/grp016_Normal.png', aniso),
+        gloss: load_texture('images/cimon/grp016_Gloss.png', aniso),
         faces: load_face_textures(),
+        envmap: load_cubemap_texture(),
     };
 
     let face_idx = 0;
@@ -394,9 +396,17 @@ export function init_cimon(gl_ext) {
             if (part.name == 'cimon_shell') {
                 pgm.uniformSampler2D('u_tex_color', textures.color);
                 pgm.uniformSampler2D('u_tex_normal', textures.normal);
+                pgm.uniformSampler2D('u_tex_gloss', textures.gloss);
+                pgm.uniformSamplerCube('u_tex_envmap', textures.envmap);
+                //pgm.uniform4f('u_shading_params', 0.5, 0.1, 0.5, 0.0);
+                pgm.uniform4f('u_shading_params', 0.4, 0.15, 0.7, 0);
+                //pgm.uniform4f('u_shading_params', 0.1, 0, 0, 0);
+                pgm.uniform1f('u_normal_mix', 1);
             }
             else if (part.name == 'cimon_face') {
                 pgm.uniformSampler2D('u_tex_color', textures.faces[face_idx]);
+                pgm.uniform4f('u_shading_params', 1.0, 0.2, 0.0, 0.5);
+                pgm.uniform1f('u_normal_mix', 0);
             }
 
             gl.drawElements(gl.TRIANGLES, part.count, gl.UNSIGNED_SHORT, start << 1);
@@ -499,10 +509,20 @@ function make_program() {
             uniform sampler2D u_tex_color;
             uniform sampler2D u_tex_gloss;
             uniform sampler2D u_tex_normal;
+            uniform samplerCube u_tex_envmap;
+            uniform vec4 u_shading_params;
+            uniform float u_normal_mix;
 
             float half_lambert(float NdotL) {
                 float diff = 0.5 * (NdotL + 1.0);
                 return diff * diff;
+            }
+
+            float saturate(float x) { return clamp(x, 0.0, 1.0); }
+            vec3 saturate(vec3 x) { return clamp(x, 0.0, 1.0); }
+
+            float specular_occlusion2(float NdotV, float occ) {
+                return saturate(pow(NdotV + occ, 4.0) - 1.0 + occ);
             }
 
             vec3 filmic(vec3 c) {
@@ -515,33 +535,34 @@ function make_program() {
             }
 
             void main() {
-                //gl_FragColor.rgb = texture2D(u_tex_normal, v_texcoord).rgb;
-                //gl_FragColor.a = 1.0;
-                //return;
+                float k_diffuse = u_shading_params[0];
+                float k_specular = u_shading_params[1];
+                float k_environment = u_shading_params[2];
+                float k_emissive = u_shading_params[3];
 
                 vec3 N = normalize(v_normal);
                 vec3 T = normalize(v_tangent);
                 vec3 V = normalize(v_view_dir);
                 vec3 L = normalize(v_light_dir);
                 vec3 H = normalize(L + V);
+                vec3 R = reflect(V, N);
+
+                float gloss = 1.0 - texture2D(u_tex_gloss, v_texcoord).g;
+                /*
+                {
+                    gl_FragColor.rgb = texture2D(u_tex_gloss, v_texcoord).rgb;
+                    gl_FragColor.a = 1.0;
+                    return;
+                }
+                */
 
                 {
                     // tangentspace -> worldspace
                     vec3 B = cross(N, T);
                     mat3 TBN = mat3(T, B, N);
 
-                    // worldspace -> tangentspace
-                    //mat3 TBN = mat3(T.x, B.x, N.x, T.y, B.y, N.y, T.z, B.z, N.z);
-
-                    // convert ATI2N tangentspace normals to worldspace
-                    //N.xy = -1.0 + 2.0 * (texture2D(material_normalMap, vTexCoord).yx);
-                    //N.y = -N.y;
-                    //N.z = sqrt(1.0 - N.x*N.x - N.y*N.y);
-                    //N.xy = -1.0 + 2.0 * (texture2D(material_normalMap, vTexCoord).yx);
-
                     vec3 N2 = 2.0 * (texture2D(u_tex_normal, v_texcoord).rgb - 0.5);
-                    //N = mix(N, N2, u_normal_map_mix);
-                    N = TBN * mix(vec3(0,0,1), N2, 1.0);
+                    N = TBN * mix(vec3(0,0,1), N2, u_normal_mix);
                     N = normalize(N);
                 }
 
@@ -551,7 +572,6 @@ function make_program() {
                 {
                     // color texture
                     C += toLinear(texture2D(u_tex_color, v_texcoord).rgb);
-                    //C = vec3(0.8);
                 }
 
                 {
@@ -559,23 +579,35 @@ function make_program() {
                     float NdotL = max(0.0, dot(N, L));
                     float NdotV = max(0.0, dot(N, V));
 
-                    float diffuse = 0.5 * half_lambert(NdotL);
+                    float diffuse = half_lambert(NdotL);
                     float specular = 0.0;
 
                     {
-                        float phong_exponent = 90.0;
-                        float phong_amount = 0.9;
+                        float phong_exponent = 30.0;
+                        float phong_amount = k_specular;
                         specular += phong_amount * pow(min(1.0, NdotH), phong_exponent);
                     }
 
-                    C *= diffuse;
-                    C += vec3(specular);
+                    C *= (k_emissive + k_diffuse * diffuse);
+
+                    vec3 Cs = vec3(0.0);
+                    if (true) {
+                        float f0 = 0.01;
+
+                        float F0 = f0;
+                        float NdotV = max(0.0, dot(N, V));
+                        float F = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+
+                        float specular = k_environment;
+                        float spec_occ = 0.5;
+                        float x = saturate(F) * spec_occ * specular;
+                        Cs += x * toLinear(textureCube(u_tex_envmap, R).rgb);
+                    }
+
+                    C += gloss * (Cs + vec3(specular));
                 }
 
-                //C = 0.5*normalize(v_tangent) + 0.5;
-
                 C = filmic(C);
-
                 gl_FragColor = vec4(C, 1.0);
             }
         `,
@@ -733,3 +765,42 @@ function zero_array(arr) {
         arr[i] = 0.0;
 }
 
+function load_cubemap_texture() {
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+
+    const size = 512;
+
+    const sides = [
+        gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
+        gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+        gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,
+        gl.TEXTURE_CUBE_MAP_POSITIVE_X,
+        gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
+        gl.TEXTURE_CUBE_MAP_POSITIVE_Z
+    ];
+
+    Array.from('bdflrt').forEach((ch, idx) => {
+        // alloc
+        const side = sides[idx];
+        gl.texImage2D(side, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+        // load
+        const url = `images/cimon/envmap/face-${ch}.png`;
+        const img = new Image;
+        img.src = url;
+        img.onload = _ => {
+            gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+            gl.texImage2D(side, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+            //console.log(idx, url);
+            //gl.generateMipmap(gl.TEXTURE_2D);
+        };
+    });
+
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    return texture;
+}
