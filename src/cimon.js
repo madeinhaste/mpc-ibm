@@ -240,7 +240,7 @@ export function init_cimon(gl_ext) {
         if (1) {
             const t = 0.001 * env.time;
             // target pos
-            vec3.set(V, 0.3 * noise(t, 0.0), 0.3 * noise(0.3, -t), 0.3);
+            vec3.set(V, 0.25 * noise(t, 0.0), 0.3 * noise(0.3, -t), 0.3);
 
             /*
             // delta

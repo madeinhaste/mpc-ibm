@@ -19,13 +19,13 @@ const gl_ext = {
     instanced: gl.getExtension('ANGLE_instanced_arrays'),
 };
 
-let grid_enabled = true;
+let grid_enabled = false;
 let wireframe = false;
-let developer_enabled = true;
+let developer_enabled = false;
 
 const orbit = new Orbit;
 const camera = new Camera;
-const control = make_mouse_control(canvas, orbit, camera);
+//const control = make_mouse_control(canvas, orbit, camera);
 const mat = mat4.create();
 
 const tilt = {
@@ -72,6 +72,7 @@ const env = {
     orbit.rotate[1] = 0 * DEG2RAD;
     //orbit.translate[1] = 5;
     orbit.distance = 1.8;
+    orbit.distance = 2.8;
 }
 
 const debug = (function() {
@@ -210,7 +211,7 @@ window.addEventListener('devicemotion', function(e) {
 
     const pos_target = tilt.pos_target;
     const k = 0.005;
-    vec3.scaleAndAdd(pos_target, pos_target, a, k);
+    //vec3.scaleAndAdd(pos_target, pos_target, a, k);
 });
 
 window.addEventListener('deviceorientation', function(e) {
@@ -219,31 +220,44 @@ window.addEventListener('deviceorientation', function(e) {
         // no IMU
         return;
     }
-    //debug(`beta: ${e.beta.toFixed(3)}  gamma: ${e.gamma.toFixed(3)}`);
+    debug(`ori: ${ori}  beta: ${e.beta.toFixed(3)}  gamma: ${e.gamma.toFixed(3)}`);
 
     const rot_target = tilt.rot_target;
     quat.identity(rot_target);
 
-    const g = e.gamma;
     let rx = 0;
     let rz = 0;
-    if (0 <= g & g < 90) {
-        rx = -(90 - g);
-        rz = e.beta;
+
+    if (ori === -90) {
+        const g = e.gamma;
+        if (0 <= g & g < 90) {
+            rx = -(90 - g);
+            rz = e.beta;
+        }
+        else if (-90 <= g && g < 0) {
+            rx = -(-90 - g);
+            if (e.beta < 0)
+                rz = -180-e.beta;
+            else
+                rz = 180-e.beta;
+        }
     }
-    else if (-90 <= g && g < 0) {
-        rx = -(-90 - g);
-        if (e.beta < 0)
-            rz = -180-e.beta;
-        else
-            rz = 180-e.beta;
+    else if (ori === 0) {
+        const b = e.beta;
+        rx = -(e.beta - 90);
+        if (b < 90) {
+            rz = e.gamma;
+        } else {
+            rz = -e.gamma;
+        }
     }
 
+    //rx += 10;
 
-    rx += 10;
-
-    quat.rotateZ(rot_target, rot_target, 0.25*rz * DEG2RAD);
-    quat.rotateX(rot_target, rot_target, 0.25*rx * DEG2RAD);
+    if (rx || rz) {
+        quat.rotateZ(rot_target, rot_target, 0.25*rz * DEG2RAD);
+        quat.rotateX(rot_target, rot_target, 0.125*rx * DEG2RAD);
+    }
 });
 
 function get_orientation() {
