@@ -56,6 +56,10 @@ const env = {
     dt: 0,
     camera: camera,
     pickray: new PickRay(camera),
+
+    light: {
+        pos: vec3.fromValues(10, 10, 100),
+    },
 };
 
 {
@@ -78,7 +82,7 @@ const debug = (function() {
 }());
 
 const grid = init_grid(gl_ext);
-const cimon = init_cimon();
+const cimon = init_cimon(gl_ext);
 const cupola = init_cupola();
 
 function draw() {

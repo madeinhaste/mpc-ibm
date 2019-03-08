@@ -27,7 +27,31 @@ canvas {
     color: white;
     pointer-events: none;
 }
+
+.webgl-error {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(0,0,0, 1.0);
+    padding: 0;
+    margin: 0;
+    white-space: pre;
+    /* font: 14px 'IBM Plex Sans Condensed'; */
+    font: 16px 'IBM Plex Sans';
+}
+
+.webgl-error-info {
+    color: #fc4;
+    font-style: italic;
+    font-weight: 700;
+}
+
+.webgl-error-highlight {
+    color: #f4f;
+    background-color: #400;
+}
 </style>
+
 <script src=bundles/cimon-app.bundle.js defer></script>
 <body>
 <canvas></canvas>

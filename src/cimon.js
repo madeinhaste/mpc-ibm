@@ -1,8 +1,8 @@
 import {parse_OBJ} from './obj-parser';
 import {create_buffer, create_program, create_texture, GLSL} from './webgl';
-import {mat3, mat4, vec3, vec4, quat} from 'gl-matrix';
+import {vec2, mat3, mat4, vec3, vec4, quat} from 'gl-matrix';
 import SimplexNoise from 'simplex-noise';
-import {ray_sphere_intersect} from './geom-utils';
+import {ray_sphere_intersect, copy_vec2, copy_vec3} from './geom-utils';
 import {assert, lerp, clamp, each_line, expovariate} from './utils';
 import {Howl, Howler} from 'howler';
 
@@ -25,7 +25,7 @@ let visemes = null;
         });
 }());
 
-export function init_cimon() {
+export function init_cimon(gl_ext) {
     let speech_started = -Infinity;
     let speech_duration;
     let speech_playing = false;
@@ -72,12 +72,15 @@ export function init_cimon() {
     const buffers = {
         positions: null,
         normals: null,
+        tangents: null,
         texcoords: null,
         elements: null,
     };
 
+    const aniso = gl_ext.aniso;
     const textures = {
-        color: load_texture('images/cimon/grp016_AlbedoM.png'),
+        color: load_texture('images/cimon/grp016_AlbedoM.png', aniso),
+        normal: load_texture('images/cimon/grp016_Normal.png', aniso),
         faces: load_face_textures(),
     };
 
@@ -113,8 +116,10 @@ export function init_cimon() {
     const noise = Noise(0.1, 1);
 
     function init_mesh_from_obj(obj) {
+        calc_mesh_tangents(obj);
         buffers.positions = create_buffer(gl.ARRAY_BUFFER, obj.positions);
         buffers.normals = create_buffer(gl.ARRAY_BUFFER, obj.normals);
+        buffers.tangents = create_buffer(gl.ARRAY_BUFFER, obj.tangents);
         buffers.texcoords = create_buffer(gl.ARRAY_BUFFER, obj.texcoords);
         buffers.elements = create_buffer(gl.ELEMENT_ARRAY_BUFFER, obj.elements);
         num_verts = obj.n_vertices;
@@ -129,6 +134,7 @@ export function init_cimon() {
     const V = vec3.create();
     const M = mat3.create();
     const tmp = vec3.create();
+    const mat_normal = mat3.create();
 
     // frame
     const F = vec3.create();
@@ -353,18 +359,25 @@ export function init_cimon() {
         if (!num_elems)
             return;
 
-        {
-            mat4.fromRotationTranslation(mat, actor.rot, actor.pos);
-            mat4.mul(mat, env.camera.mvp, mat);
-        }
+        mat4.fromRotationTranslation(mat, actor.rot, actor.pos);
+        mat3.normalFromMat4(mat_normal, mat);
 
         const pgm = program.use();
-        pgm.uniformMatrix4fv('u_mvp', mat);
+        pgm.uniformMatrix4fv('u_mat_viewproj', env.camera.mvp);
+        pgm.uniformMatrix4fv('u_mat_model', mat);
+        pgm.uniformMatrix3fv('u_mat_normal', mat_normal);
+        pgm.uniform3fv('u_light_pos', env.light.pos);
+        pgm.uniform3fv('u_view_pos', env.camera.view_pos);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, buffers.positions);
         pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
+
         gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normals);
         pgm.vertexAttribPointer('a_normal', 3, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.tangents);
+        pgm.vertexAttribPointer('a_tangent', 3, gl.FLOAT, false, 0, 0);
+
         gl.bindBuffer(gl.ARRAY_BUFFER, buffers.texcoords);
         pgm.vertexAttribPointer('a_texcoord', 2, gl.FLOAT, false, 0, 0);
 
@@ -378,8 +391,14 @@ export function init_cimon() {
         let start = 0;
         for (let i = 0; i < parts.length; ++i) {
             const part = parts[i];
-            const tex = (part.name == 'cimon_shell') ? textures.color : textures.faces[face_idx];
-            pgm.uniformSampler2D('u_tex_color', tex);
+            if (part.name == 'cimon_shell') {
+                pgm.uniformSampler2D('u_tex_color', textures.color);
+                pgm.uniformSampler2D('u_tex_normal', textures.normal);
+            }
+            else if (part.name == 'cimon_face') {
+                pgm.uniformSampler2D('u_tex_color', textures.faces[face_idx]);
+            }
+
             gl.drawElements(gl.TRIANGLES, part.count, gl.UNSIGNED_SHORT, start << 1);
             start += part.count;
         }
@@ -435,17 +454,35 @@ function make_program() {
         vertex: GLSL`
             attribute vec3 a_position;
             attribute vec3 a_normal;
+            attribute vec3 a_tangent;
             attribute vec2 a_texcoord;
 
             varying vec3 v_normal;
+            varying vec3 v_tangent;
             varying vec2 v_texcoord;
+            varying vec3 v_view_dir;
 
-            uniform mat4 u_mvp;
+            // lighting
+            varying vec3 v_light_dir;
+            uniform vec3 u_light_pos;
+
+            uniform mat4 u_mat_viewproj;
+            uniform mat4 u_mat_model;
+            uniform mat3 u_mat_normal;
+            uniform vec3 u_view_pos;
 
             void main() {
-                gl_Position = u_mvp * vec4(a_position, 1.0);
-                gl_PointSize = 3.0;
-                v_normal = a_normal;
+                // worldspace position
+                vec3 P_ws = (u_mat_model * vec4(a_position, 1.0)).xyz;
+
+                // worldspace directions
+                v_light_dir = u_light_pos - P_ws;
+                v_view_dir = u_view_pos - P_ws;
+
+                gl_Position = u_mat_viewproj * vec4(P_ws, 1.0);
+
+                v_normal = u_mat_normal * a_normal;
+                v_tangent = u_mat_normal * a_tangent;
                 v_texcoord = a_texcoord;
             }
         `,
@@ -453,28 +490,109 @@ function make_program() {
             precision mediump float;
 
             varying vec3 v_normal;
+            varying vec3 v_tangent;
             varying vec2 v_texcoord;
+            varying vec3 v_light_dir;
+            varying vec3 v_view_dir;
 
             uniform vec4 u_color;
             uniform sampler2D u_tex_color;
             uniform sampler2D u_tex_gloss;
             uniform sampler2D u_tex_normal;
 
+            float half_lambert(float NdotL) {
+                float diff = 0.5 * (NdotL + 1.0);
+                return diff * diff;
+            }
+
+            vec3 filmic(vec3 c) {
+                vec3 x = vec3(max(0.0, c.x-0.004), max(0.0, c.y-0.004), max(0.0, c.z-0.004));
+                return (x*(6.2*x + 0.5)) / (x*(6.2*x + 1.7) + 0.06);
+            }
+
+            vec3 toLinear(vec3 rgb) {
+                return pow(rgb, vec3(2.2));
+            }
+
             void main() {
-                //vec3 C = (normalize(v_normal) + 1.0)/2.0;
-                vec3 C = texture2D(u_tex_color, v_texcoord).rgb;
+                //gl_FragColor.rgb = texture2D(u_tex_normal, v_texcoord).rgb;
+                //gl_FragColor.a = 1.0;
+                //return;
+
+                vec3 N = normalize(v_normal);
+                vec3 T = normalize(v_tangent);
+                vec3 V = normalize(v_view_dir);
+                vec3 L = normalize(v_light_dir);
+                vec3 H = normalize(L + V);
+
+                {
+                    // tangentspace -> worldspace
+                    vec3 B = cross(N, T);
+                    mat3 TBN = mat3(T, B, N);
+
+                    // worldspace -> tangentspace
+                    //mat3 TBN = mat3(T.x, B.x, N.x, T.y, B.y, N.y, T.z, B.z, N.z);
+
+                    // convert ATI2N tangentspace normals to worldspace
+                    //N.xy = -1.0 + 2.0 * (texture2D(material_normalMap, vTexCoord).yx);
+                    //N.y = -N.y;
+                    //N.z = sqrt(1.0 - N.x*N.x - N.y*N.y);
+                    //N.xy = -1.0 + 2.0 * (texture2D(material_normalMap, vTexCoord).yx);
+
+                    vec3 N2 = 2.0 * (texture2D(u_tex_normal, v_texcoord).rgb - 0.5);
+                    //N = mix(N, N2, u_normal_map_mix);
+                    N = TBN * mix(vec3(0,0,1), N2, 1.0);
+                    N = normalize(N);
+                }
+
+                // accumulated radiance
+                vec3 C = vec3(0.0);
+
+                {
+                    // color texture
+                    C += toLinear(texture2D(u_tex_color, v_texcoord).rgb);
+                    //C = vec3(0.8);
+                }
+
+                {
+                    float NdotH = max(0.0, dot(N, H));
+                    float NdotL = max(0.0, dot(N, L));
+                    float NdotV = max(0.0, dot(N, V));
+
+                    float diffuse = 0.5 * half_lambert(NdotL);
+                    float specular = 0.0;
+
+                    {
+                        float phong_exponent = 90.0;
+                        float phong_amount = 0.9;
+                        specular += phong_amount * pow(min(1.0, NdotH), phong_exponent);
+                    }
+
+                    C *= diffuse;
+                    C += vec3(specular);
+                }
+
+                //C = 0.5*normalize(v_tangent) + 0.5;
+
+                C = filmic(C);
+
                 gl_FragColor = vec4(C, 1.0);
             }
         `,
     });
 }
 
-function load_texture(url) {
+function load_texture(url, aniso) {
     const texture = create_texture({
         size: 4,
         min: gl.LINEAR_MIPMAP_LINEAR,
         mag: gl.LINEAR,
     });
+
+    if (aniso) {
+        gl.texParameteri(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, 4);
+    }
+
     gl.generateMipmap(gl.TEXTURE_2D);
 
     const img = new Image;
@@ -514,3 +632,104 @@ function Noise(scale=1, octaves=1) {
         return v;
     };
 }
+
+function calc_mesh_tangents(mesh) {
+    let P = mesh.positions;
+    let N = mesh.normals;
+    let C = mesh.texcoords;
+    let T = mesh.tangents || (mesh.tangents = new Float32Array(N.length));
+    //let B = mesh.attributes.bitangents || (mesh.attributes.bitangents = new Float32Array(N.length));
+    let E = mesh.elements;
+
+    let p01 = vec3.create();
+    let p02 = vec3.create();
+    let c01 = vec2.create();
+    let c02 = vec2.create();
+    let sdir = vec3.create();
+    //let tdir = vec3.create();
+
+    let p0 = vec3.create();
+    let p1 = vec3.create();
+    let p2 = vec3.create();
+    let c0 = vec2.create();
+    let c1 = vec2.create();
+    let c2 = vec2.create();
+
+    function add_triangle(e0, e1, e2) {
+        // load triangle position
+        copy_vec3(p0, 0, P, 3*e0);
+        copy_vec3(p1, 0, P, 3*e1);
+        copy_vec3(p2, 0, P, 3*e2);
+
+        // load triangle texcoord
+        copy_vec2(c0, 0, C, 2*e0);
+        copy_vec2(c1, 0, C, 2*e1);
+        copy_vec2(c2, 0, C, 2*e2);
+
+        // calc vectors
+        vec3.sub(p01, p1, p0);
+        vec3.sub(p02, p2, p0);
+
+        vec2.sub(c01, c1, c0);
+        vec2.sub(c02, c2, c0);
+
+        // divisor
+        let r = 1.0 / (c01[0]*c02[1] - c01[1]*c02[0]);
+
+        sdir[0] = r * (p01[0]*c02[1] - p02[0]*c01[1]);
+        sdir[1] = r * (p01[1]*c02[1] - p02[1]*c01[1]);
+        sdir[2] = r * (p01[2]*c02[1] - p02[2]*c01[1]);
+
+        //tdir[0] = r * (p02[0]*c02[0] - p01[0]*c01[0]);
+        //tdir[1] = r * (p02[1]*c02[0] - p01[1]*c01[0]);
+        //tdir[2] = r * (p02[2]*c02[0] - p01[2]*c01[0]);
+
+        // accumulate
+        for (let i = 0; i < 3; ++i) {
+            T[3*e0 + i] += sdir[i];
+            T[3*e1 + i] += sdir[i];
+            T[3*e2 + i] += sdir[i];
+
+            //B[3*e0 + i] += tdir[i];
+            //B[3*e1 + i] += tdir[i];
+            //B[3*e2 + i] += tdir[i];
+        }
+    }
+
+    // reset
+    zero_array(T);
+    //zero_array(B);
+
+    // accumulate
+    let sp = 0;
+    for (let i = 0; i < E.length; i += 3) {
+        add_triangle(E[i+0], E[i+1], E[i+2]);
+    }
+
+    // Gram-Schmidt orthogonalize
+    let nrm = vec3.create();
+    let tan = vec3.create();
+    //let bit = vec3.create();
+    let tmp = vec3.create();
+
+    for (let dp = 0; dp < T.length; dp += 3) {
+        copy_vec3(nrm, 0, N, dp);
+        copy_vec3(tan, 0, T, dp);
+        //copy_vec3(bit, 0, B, dp);
+
+        vec3.scale(tmp, nrm, vec3.dot(nrm, tan));
+        vec3.sub(tmp, tan, tmp);
+        vec3.normalize(tan, tmp);
+        copy_vec3(T, dp, tan, 0);
+
+        //vec3.normalize(bit, tmp);
+        //copy_vec3(B, dp, bit, 0);
+    }
+}
+
+function zero_array(arr) {
+    let n = arr.length;
+    for (let i = 0; i < n; ++i)
+        arr[i] = 0.0;
+}
+

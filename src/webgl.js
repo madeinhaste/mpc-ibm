@@ -1,3 +1,5 @@
+import {dump_glsl_error} from './webgl-debug';
+
 export function create_gl(el, opts) {
     console.assert(!window.gl);
     window.gl = el.getContext('webgl', opts);
@@ -305,7 +307,15 @@ class Program {
     }
 }
 
-export function create_program(opts) { return new Program(opts) }
+export function create_program(opts) {
+    try {
+        return new Program(opts);
+    }
+    catch (error) {
+        dump_glsl_error(opts.name, error);
+        console.log('ERROR:', error);
+    }
+}
 
 export function create_texture(options) {
     var texture = gl.createTexture();
