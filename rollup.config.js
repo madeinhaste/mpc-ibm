@@ -31,6 +31,8 @@ module.exports = [
     //'trail.worker',
     //'trail-worker-3d',
     //'turblines2d',
+    'cimon-app',
+    'cimon-lipsync',
     'airplane',
     'trails-worker',
 ].map(bundle);

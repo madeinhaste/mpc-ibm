@@ -75,3 +75,19 @@ export function random_gaussian(mu=0, sd=1) {
 }
 
 export const expovariate = mu => -Math.log(1 - Math.random()) * mu;
+
+
+export function each_line(text, callback) {
+    var sp = 0;
+    var lineno = 0;
+    while (sp < text.length) {
+        var ep = text.indexOf('\n', sp);
+        if (ep == -1)
+            ep = text.length;
+
+        var line = text.substr(sp, ep - sp);
+        sp = ep + 1;
+
+        callback(line, lineno++);
+    }
+}

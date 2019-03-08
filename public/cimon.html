@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset=UTF-8>
+<meta name=viewport content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1">
+<title>mpc-ibm|cimon</title>
+<link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans" rel=stylesheet>
+<style>
+html, body {
+    background-color: black;
+    color: white;
+    font-family: 'IBM Plex Sans';
+}
+
+canvas {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: black;
+}
+
+.debug {
+    position: absolute;
+    top: 0; left: 0;
+    padding: 4px 8px;
+    font-size: 20px;
+    white-space: pre-line;
+    background-color: rgba(0,0,0, 0.5);
+    color: white;
+    pointer-events: none;
+}
+</style>
+<script src=bundles/cimon-app.bundle.js defer></script>
+<body>
+<canvas></canvas>
+<div class=debug></div>

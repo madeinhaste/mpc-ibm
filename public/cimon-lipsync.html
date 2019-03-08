@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset=UTF-8>
+<meta name=viewport content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1">
+<title>mpc-ibm|cimon-lipsync</title>
+<link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans" rel=stylesheet>
+<style>
+html, body {
+    background-color: black;
+    color: white;
+    font-family: 'IBM Plex Sans';
+}
+
+canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 512px; height: 512px;
+    background-color: black;
+}
+
+audio {
+    position: absolute;
+    top: 0; right: 0;
+    margin: 8px;
+}
+
+.debug {
+    position: absolute;
+    top: 0; left: 0;
+    padding: 4px 8px;
+    font-size: 20px;
+    white-space: pre-line;
+    background-color: rgba(0,0,0, 0.5);
+    color: white;
+    pointer-events: none;
+}
+</style>
+<script src=bundles/cimon-lipsync.bundle.js defer></script>
+<body>
+<canvas></canvas>
+<div class=debug></div>
+<audio controls>
+    <source src=sounds/cimon_fx.mp4 type=audio/mp4>
+</audio>
+<audio autoplay loop>
+    <source src=sounds/cimon_ambience.mp4 type=audio/mp4>
+</audio>
