@@ -33,7 +33,7 @@ export function init_cupola() {
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         {
-            const angle = 0.000015 * env.time;
+            const angle = 0.000050 * env.time;
             mat4.identity(mat);
             mat[0] = mat[5] = mat[10] = 1.00;
             mat4.rotateZ(mat, mat, angle);

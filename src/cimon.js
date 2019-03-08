@@ -461,10 +461,9 @@ function make_program() {
             uniform sampler2D u_tex_normal;
 
             void main() {
-                vec3 C = (normalize(v_normal) + 1.0)/2.0;
-
-                C = texture2D(u_tex_color, v_texcoord).rgb;
-                gl_FragColor = vec4(C, 0.0);
+                //vec3 C = (normalize(v_normal) + 1.0)/2.0;
+                vec3 C = texture2D(u_tex_color, v_texcoord).rgb;
+                gl_FragColor = vec4(C, 1.0);
             }
         `,
     });
