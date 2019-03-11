@@ -27,15 +27,27 @@ export function init_cupola() {
         mat4.identity(mat);
         mat[0] = mat[5] = mat[10] = 1.25;
         mat[14] = -1;
-        //mat4.translate(mat, mat, [0,0, 1]);
         pgm.uniformMatrix4fv('u_mat', mat);
         pgm.uniformSampler2D('u_texture', textures.earthrise);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         {
+            let scale = 1.0;
+
+            {
+                // calc scale
+                const camera = env.camera;
+                const aspect = camera.viewport[2] / camera.viewport[3];
+                const dist = camera.view_pos[2] - mat[14];
+                const v = dist * Math.atan(camera.fov/2);
+                const h = aspect * v;
+                const diag = Math.sqrt(v*v + h*h);
+                scale = 0.77*diag;
+            }
+
             const angle = 0.000050 * env.time;
             mat4.identity(mat);
-            mat[0] = mat[5] = mat[10] = 1.00;
+            mat[0] = mat[5] = mat[10] = scale;
             mat4.rotateZ(mat, mat, angle);
             pgm.uniformMatrix4fv('u_mat', mat);
 
