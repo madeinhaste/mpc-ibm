@@ -12,6 +12,13 @@ const config = (src, dst) => ({
         format: 'iife',
         sourcemap: true,
     },
+    moduleContext: name => {
+        if (name.match(/@ungap\/(essential-weakset|weakmap|custom-event|essential-map)/)) {
+            return 'window';
+        } else {
+            return 'undefined';
+        }
+    },
     plugins: [
         resolve(),
         commonjs(),
