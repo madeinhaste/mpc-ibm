@@ -42,4 +42,5 @@ module.exports = [
     'cimon-lipsync',
     'airplane',
     'trails-worker',
+    'rotation-lock-app',
 ].map(bundle);
