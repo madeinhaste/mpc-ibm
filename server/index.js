@@ -1,9 +1,7 @@
 const express = require('express');
 const morgan = require('morgan');
 const path = require('path');
-
-const PORT = 8000;
-const RELOADER_PORT = 8001;
+const os = require('os');
 
 const app = express();
 app.use(morgan('dev'));
@@ -11,6 +9,23 @@ app.use(morgan('dev'));
 const Debug = require('debug');
 const debug = Debug('server');
 const assert = console.assert;
+
+const PORT = 8000;
+const RELOADER_PORT = 8001;
+const hostname = get_local_ip();
+const url_base = `http://${hostname}:${PORT}`;
+
+app.get('/server_info', (req, res) => {
+    const hostname = get_local_ip();
+    const scheme = 'http';
+    const origin = `${scheme}://${hostname}:${PORT}`;
+
+    res.json({
+        hostname,
+        port: PORT,
+        origin,
+    });
+});
 
 // static
 const static_root = './public';
@@ -103,3 +118,18 @@ app.use('/api', require('./api'));
 app.listen(PORT, function() {
     debug(`listening on port ${PORT}`);
 });
+
+// server-info
+function get_local_ip() {
+    const details = os.networkInterfaces();
+    for (let name in details) {
+        for (let info of details[name]) {
+            if (info.family == 'IPv4' &&
+                info.internal == false)
+            {
+                return info.address;
+            }
+        }
+    }
+    return '0.0.0.0';
+}
