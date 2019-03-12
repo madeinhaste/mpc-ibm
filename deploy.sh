@@ -26,6 +26,9 @@ cp -a public/images/cimon/*.{png,jpg} dist/images/cimon/
 cp -a public/images/cimon/faces/*.png dist/images/cimon/faces/
 cp -a public/images/cimon/envmap/*.png dist/images/cimon/envmap/
 
+cp -a public/bundles/rotation-lock-app.bundle.js dist/bundles/
+cp -a public/rotate.html dist/
+
 archive=dist-`date +%y%m%d`.zip
 zip -r "$archive" dist/
 mv "$archive" dist/
