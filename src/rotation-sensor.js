@@ -57,6 +57,7 @@ export function init_rotation_sensor() {
             euler.alpha = e.alpha || 0;
             euler.beta = e.beta || 0;
             euler.gamma = e.gamma || 0;
+            euler.absolute = e.absolute;
         }
 
         const {o, r} = get_both(false);
@@ -109,7 +110,7 @@ export function init_rotation_sensor() {
 
     function sample() {
         const {o, r} = get_both(true);
-        return {orientation: o, rotation: r};
+        return {orientation: o, rotation: r, euler};
     }
 
     return {sample};

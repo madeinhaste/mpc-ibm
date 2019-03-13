@@ -7,23 +7,33 @@ function Debug(text) {
     return H(Debug)`<div class=debug>${text}</div>`;
 }
 
+const devori = {
+    alpha: 0,
+    beta: 0,
+    gamma: 0,
+};
+
 function Display(mode, rotate) {
     const style = {
         transition: 'all 0.5s ease',
         transform: `rotate(${rotate}deg)`,
     };
     return H(Display)`
-    <div class=display style=${style}>${
-        mode ? 'Portrait' : 'Landscape'
-    }</div>`;
+    <div class=display style=${style}>
+        ${mode ? 'Portrait' : 'Landscape'}
+    </div>`;
 }
 
 // consider lock only: what are the values from the sensor?
 const sensor = init_rotation_sensor();
+const ff = x => (''+Math.round(x)).padStart(4, '.');
 
 function update() {
-    const {orientation: o, rotation: r} = sensor.sample();
-    Debug(`o=${o} r=${r}`);
+    const {orientation: o, rotation: r, euler: d} = sensor.sample();
+    Debug(`ori=${o} rot=${r}
+    α ${ff(d.alpha)}  β ${ff(d.beta)}  γ ${ff(d.gamma)}
+    abs=${d.absolute}
+    `);
 
     let mode = 0;
     if (r === 0 || r === 2)
@@ -47,7 +57,11 @@ function update() {
     Display(mode, rotate);
 }
 
-setInterval(update, 200);
+function animate() {
+    requestAnimationFrame(animate);
+    update();
+}
+animate();
 
 H(document.body)`
     ${Display(0, 0)}
