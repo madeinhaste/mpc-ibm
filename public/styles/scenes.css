@@ -45,21 +45,6 @@ video {
     height: 720px;
 }
 
-.subtitle {
-    position: absolute;
-    bottom: 10px; left: 0; width: 100%;
-    font-family: 'IBM Plex Sans';
-    font-size: 30px;
-    font-weight: 300;
-    text-align: center;
-    background-color: rgba(0,0,0, 0.5);
-}
-
-.subtitle em {
-    font-style: normal;
-    font-weight: 600;
-}
-
 .timecode {
     position: absolute;
     top: 0; left: 0;
@@ -68,4 +53,21 @@ video {
     font-size: 20px;
     white-space: pre-line;
     background-color: rgba(0,0,0, 0.5);
+}
+
+.subtitle {
+    position: absolute;
+    bottom: 10px; left: 0; width: 100%;
+    font-family: 'IBM Plex Sans';
+    font-size: 30px;
+    font-weight: 300;
+    text-align: center;
+    background-color: rgba(0,0,0, 0.5);
+    color: #b0bef3;
+}
+
+.subtitle em {
+    font-style: normal;
+    font-weight: 300;
+    color: #fff;
 }

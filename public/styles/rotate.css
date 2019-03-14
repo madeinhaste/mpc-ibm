@@ -50,12 +50,13 @@ video {
     font-size: 30px;
     font-weight: 300;
     padding: 10px 10px;
-    /* background-color: red; */
+    color: #b0bef3;
 }
 
 .display-text em {
     font-style: normal;
-    font-weight: 600;
+    font-weight: 300;
+    color: #fff;
 }
 
 .debug {
@@ -70,19 +71,4 @@ video {
     position: relative;
     width: 1280px;
     height: 720px;
-}
-
-.subtitle {
-    position: absolute;
-    bottom: 10px; left: 0; width: 100%;
-    font-family: 'IBM Plex Sans';
-    font-size: 30px;
-    font-weight: 300;
-    text-align: center;
-    background-color: rgba(0,0,0, 0.5);
-}
-
-.subtitle em {
-    font-style: normal;
-    font-weight: 600;
 }
