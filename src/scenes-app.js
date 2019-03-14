@@ -146,6 +146,9 @@ document.addEventListener('keydown', e => {
         case 'KeyM':
             scenes.toggle_muted();
             break;
+        case 'KeyP':
+            scenes.jump_to_current_exit();
+            break;
         case 'Home':
             scenes.video.currentTime = 0;
             break;

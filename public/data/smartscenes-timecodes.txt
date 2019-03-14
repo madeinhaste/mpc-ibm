@@ -1,6 +1,6 @@
 00:00:05.22 00:00:08.17 
 [Developing a virtual assistant to make cars more intuitive.]
-00:00:10.18 00:00:14.08
+00:00:10.18 00:00:14.08 00:00:38:03
 [Analyzing terabytes of data every hour to customize inventory.]
 00:00:17.22 00:00:22.01
 Using algorithms [to help Hollywood create even bigger movies.]

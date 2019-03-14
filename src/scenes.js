@@ -49,6 +49,17 @@ export function init_scenes() {
         video.currentTime = t;
     }
 
+    function jump_to_current_exit() {
+        if (timeline_idx < 0)
+            return;
+
+        const t = timeline[timeline_idx];
+        if (t.exit) {
+            video.currentTime = t.exit;
+            console.log('jumped to exit:', t.exit);
+        }
+    }
+
     function update_timeline_idx() {
         const t = video.currentTime;
         let idx = -1;
@@ -76,6 +87,7 @@ export function init_scenes() {
         toggle_playback,
         toggle_muted,
         jump_to_next_marker,
+        jump_to_current_exit,
         get current_text() {
             return timeline_idx < 0 ? null : timeline[timeline_idx].text;
         },
@@ -91,6 +103,7 @@ async function create_timeline() {
 
     const markers = [];
     const scripts = [];
+    const exits = [];
 
     each_line(text, (line, idx) => {
         if (idx & 1) {
@@ -98,16 +111,21 @@ async function create_timeline() {
             scripts.push(line, null);
         } else {
             // markers
-            const [min, mout] = line
+            const [min, mout, mexit] = line
                 .split(' ')
                 .map(s => parse_timecode(s, 24));
-            //.map(s => format_timecode(s, 24));
+
             markers.push(min, mout)
+            exits.push(
+                mexit ? mexit : 0,
+                0
+            );
         }
     });
 
     return markers.map((t, idx) => ({
         time: t,
+        exit: exits[idx],
         text: scripts[idx],
     }));
 }

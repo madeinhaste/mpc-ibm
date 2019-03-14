@@ -7,10 +7,6 @@ import {init_scenes} from './scenes';
 const MODE_LANDSCAPE = 0;
 const MODE_PORTRAIT = 1;
 
-// i want  video to be:
-// centered
-// fitting the width/height
-
 const scenes = init_scenes();
 let video = null;
 scenes.ready().then(function() {
@@ -25,7 +21,6 @@ function Debug(text) {
 
 function Display(mode, rotate) {
     const style = {
-        //transition: 'all 0.5s ease',
         transform: `rotate(${rotate}deg)`,
     };
 
@@ -62,34 +57,6 @@ function init_html() {
 const sensor = init_rotation_sensor();
 const ff = x => (''+Math.round(x)).padStart(4, '.');
 
-function update() {
-    const {orientation: o, rotation: r, euler: d} = sensor.sample();
-    Debug(`ori=${o} rot=${r}
-    α ${ff(d.alpha)}  β ${ff(d.beta)}  γ ${ff(d.gamma)}
-    `);
-
-    let mode = 0;
-    if (r === 0 || r === 2)
-        mode = 1;
-
-    let n = r;
-    if (o === 0) {
-    }
-    else if (o === 1) {
-        n += 3;
-    }
-    else if (o === 2) {
-        n += 2;
-    }
-    else if (o === 3) {
-        n += 1;
-    }
-
-    //const n = (r + (o+2)) % 4;
-    const rotate = -(n%4) * 90;
-    Display(mode, rotate);
-}
-
 // for devtools
 function get_mode_rotate() {
     let mode = 0;
@@ -103,7 +70,7 @@ function get_mode_rotate() {
     }
     else if ('orientation' in window) {
         /*
-        // iOS
+        // iOS sensor code
         const {orientation: o, rotation: r} = sensor.sample();
         //Debug(`ori=${o} rot=${r} α ${ff(d.alpha)}  β ${ff(d.beta)}  γ ${ff(d.gamma)}`);
 
@@ -143,7 +110,7 @@ function get_mode_rotate() {
     return [mode, rotate];
 }
 
-function update2() {
+function update() {
     scenes.update();
     const [mode, rotate] = get_mode_rotate();
     Display(mode, rotate);
@@ -183,9 +150,15 @@ function update_video(mode, in_scene) {
     video.style.transform = t;
 
     if (in_scene) {
+        // if we're in-scene, and going from pause->unpause,
+        // jump to the next exit
+        if (!pause && video.paused) {
+            scenes.jump_to_current_exit();
+        }
         // only pause in scene
         set_video_paused(video, pause);
         video.style.filter = filter;
+
     } else {
         set_video_paused(video, false);
         video.style.filter = null;
@@ -203,7 +176,7 @@ function set_video_paused(video, pause) {
 
 function animate() {
     requestAnimationFrame(animate);
-    update2();
+    update();
 }
 
 // touch to play (in case autoplay disabled)
@@ -218,6 +191,7 @@ document.addEventListener('touchstart', e => {
 }, {passive:false});
 
 /*
+// fullscreen API
 document.body.addEventListener('touchend', e => {
     if ('fullscreenElement' in document) {
         if (!document.fullscreenElement) {
