@@ -43,4 +43,5 @@ module.exports = [
     'airplane',
     'trails-worker',
     'rotation-lock-app',
+    'scenes-app',
 ].map(bundle);
