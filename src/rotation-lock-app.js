@@ -25,7 +25,7 @@ function Debug(text) {
 
 function Display(mode, rotate) {
     const style = {
-        transition: 'all 0.5s ease',
+        //transition: 'all 0.5s ease',
         transform: `rotate(${rotate}deg)`,
     };
 
@@ -38,9 +38,13 @@ function Display(mode, rotate) {
         text = [text];
     }
 
+    style.display = (mode && text) ? 'flex' : 'none';
+
     return H(Display)`
     <div class=display style=${style}>
-        ${text}
+        <div class=display-text>
+            ${text}
+        </div>
     </div>`;
 }
 
