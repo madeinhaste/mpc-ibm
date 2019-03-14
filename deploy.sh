@@ -11,6 +11,8 @@ mkdir dist/data
 mkdir dist/bundles
 mkdir dist/images
 mkdir dist/sounds
+mkdir dist/styles
+mkdir dist/videos
 
 cp -a public/bundles/airplane.bundle.js dist/bundles/
 cp -a public/bundles/trails-worker.bundle.js dist/bundles/
@@ -27,7 +29,13 @@ cp -a public/images/cimon/faces/*.png dist/images/cimon/faces/
 cp -a public/images/cimon/envmap/*.png dist/images/cimon/envmap/
 
 cp -a public/bundles/rotation-lock-app.bundle.js dist/bundles/
+cp -a public/bundles/scenes-app.bundle.js dist/bundles/
 cp -a public/rotate.html dist/
+cp -a public/scenes.html dist/
+
+cp -a public/styles/rotate.css dist/styles/
+cp -a public/styles/scenes.css dist/styles/
+cp -a public/videos/smartscenes-190313.mp4 dist/videos/
 
 archive=dist-`date +%y%m%d`.zip
 zip -r "$archive" dist/
