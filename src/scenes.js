@@ -11,7 +11,7 @@ export function init_scenes() {
     let timeline_idx = -1;
 
     const video = H`
-    <video muted autoplay loop playsinline webkit-playsinline>
+    <video autoplay loop playsinline webkit-playsinline>
         <source src=${urls.video} type="video/mp4">
     </video>`;
 
