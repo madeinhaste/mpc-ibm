@@ -4,6 +4,7 @@ html, body {
     font-family: 'IBM Plex Sans';
     margin: 0;
     height: 100%;
+    display: grid;
 }
 
 .layout {
@@ -30,13 +31,22 @@ video {
     background-color: blue;
 }
 
-/*
 .display {
+    background-color: rgba(137,162,256, 0.25);
     margin: auto;
-    font-size: 50px;
-    white-space: pre-line;
+    padding: 10px 0;
+    color: #fff;
+    text-align: center;
+
+    font-family: 'IBM Plex Sans';
+    font-size: 30px;
+    font-weight: 300;
 }
-*/
+
+.display em {
+    font-style: normal;
+    font-weight: 600;
+}
 
 .debug {
     position: absolute;

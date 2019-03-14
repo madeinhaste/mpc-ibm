@@ -1,7 +1,8 @@
 import './reloader';
 import './qrcode-overlay';
-import {init_rotation_sensor} from './rotation-sensor';
 import H from './hyperHTML';
+import {init_rotation_sensor} from './rotation-sensor';
+import {init_scenes} from './scenes';
 
 const MODE_LANDSCAPE = 0;
 const MODE_PORTRAIT = 1;
@@ -10,10 +11,13 @@ const MODE_PORTRAIT = 1;
 // centered
 // fitting the width/height
 
-const video = H`
-<video muted autoplay loop playsinline webkit-playsinline>
-    <source src=videos/smartscenes-190313.mp4 type=video/mp4>
-</video>`;
+const scenes = init_scenes();
+let video = null;
+scenes.ready().then(function() {
+    video = scenes.video;
+    init_html();
+    animate();
+});
 
 function Debug(text) {
     return H(Debug)`<div class=debug>${text}</div>`;
@@ -24,20 +28,31 @@ function Display(mode, rotate) {
         transition: 'all 0.5s ease',
         transform: `rotate(${rotate}deg)`,
     };
+
+    let text = mode ? scenes.current_text : null;
+
+    if (text) {
+        text = text
+            .replace('[', '<em>')
+            .replace(']', '</em>');
+        text = [text];
+    }
+
     return H(Display)`
     <div class=display style=${style}>
-        ${mode ? 'Portrait' : 'Landscape'}
+        ${text}
     </div>`;
 }
 
-
-H(document.body)`
-    <div class=video-center>
-        ${video}
-    </div>
-    ${Display(0, 0)}
-    ${Debug()}
-`;
+function init_html() {
+    H(document.body)`
+        <div class=video-center>
+            ${video}
+        </div>
+        ${Display(0, 0)}
+        ${Debug()}
+    `;
+}
 
 // consider lock only: what are the values from the sensor?
 const sensor = init_rotation_sensor();
@@ -104,6 +119,7 @@ function get_mode_rotate() {
 }
 
 function update2() {
+    scenes.update();
     const [mode, rotate] = get_mode_rotate();
     Display(mode, rotate);
     update_video(mode);
@@ -156,8 +172,8 @@ function animate() {
     requestAnimationFrame(animate);
     update2();
 }
-animate();
 
+/*
 document.body.addEventListener('touchend', e => {
     if ('fullscreenElement' in document) {
         if (!document.fullscreenElement) {
@@ -173,3 +189,4 @@ document.body.addEventListener('touchend', e => {
             document.webkitExitFullscreen(); 
     }
 });
+*/
