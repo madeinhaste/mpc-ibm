@@ -122,11 +122,13 @@ function update2() {
     scenes.update();
     const [mode, rotate] = get_mode_rotate();
     Display(mode, rotate);
-    update_video(mode);
+
+    // so don't stop video (enforce landscape) if current_text is null
+    update_video(mode, !!scenes.current_text);
 }
 
 // update video element style and playback
-function update_video(mode) {
+function update_video(mode, in_scene) {
     const video_w = video.videoWidth;
     const video_h = video.videoHeight;
     const container_w = window.innerWidth;
@@ -154,9 +156,15 @@ function update_video(mode) {
     const t = `rotate(${angle}deg) scale(${scale})`;
     //Debug(t);
     video.style.transform = t;
-    video.style.filter = filter;
 
-    set_video_paused(video, pause);
+    if (in_scene) {
+        // only pause in scene
+        set_video_paused(video, pause);
+        video.style.filter = filter;
+    } else {
+        set_video_paused(video, false);
+        video.style.filter = null;
+    }
 }
 
 // change playback status of video, catching any autoplay errrors
