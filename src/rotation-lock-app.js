@@ -102,6 +102,7 @@ function get_mode_rotate() {
         rotate = mode ? 0 : 0;
     }
     else if ('orientation' in window) {
+        /*
         // iOS
         const {orientation: o, rotation: r} = sensor.sample();
         //Debug(`ori=${o} rot=${r} α ${ff(d.alpha)}  β ${ff(d.beta)}  γ ${ff(d.gamma)}`);
@@ -117,6 +118,26 @@ function get_mode_rotate() {
         else if (o === 3) { n += 1; }
 
         rotate = -(n%4) * 90;
+        */
+
+        //const o = window.orientation;
+        //Debug(`${mode ? 'PORTRAIT' : 'LANDSCAPE'}  o=${o}`);
+
+        const o = window.orientation;
+        if (o === 0) {
+            mode = MODE_PORTRAIT;
+            rotate = 0;
+        } else if (o === -90) {
+            mode = MODE_LANDSCAPE;
+            rotate = 0;
+        } else if (o === 90) {
+            mode = MODE_LANDSCAPE;
+            rotate = 0;
+        } else if (o === 180) {
+            mode = MODE_PORTRAIT;
+            rotate = 0;
+        }
+        //Debug(`${mode ? 'PORTRAIT' : 'LANDSCAPE'}  o=${o} r=${rotate}`);
     }
 
     return [mode, rotate];
