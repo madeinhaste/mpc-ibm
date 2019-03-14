@@ -185,6 +185,17 @@ function animate() {
     update2();
 }
 
+// touch to play (in case autoplay disabled)
+document.addEventListener('touchstart', e => {
+    const [mode, rotate] = get_mode_rotate();
+    if (mode === MODE_LANDSCAPE &&
+        scenes.video)
+    {
+        scenes.video.play();
+    }
+    e.preventDefault();
+}, {passive:false});
+
 /*
 document.body.addEventListener('touchend', e => {
     if ('fullscreenElement' in document) {
