@@ -14,6 +14,7 @@ H(document.body)`
     <div class=video-container>
         ${scenes.video}
         ${Subtitle()}
+        ${Timecode()}
     </div>
     ${canvas}
 </div>
@@ -37,6 +38,12 @@ function Subtitle(text) {
     return H(Subtitle)`<div class=subtitle>${text}</div>`;
 }
 
+function Timecode() {
+    return H(Timecode)`<div class=timecode>${
+        format_timecode(scenes.video.currentTime, 24)
+    }</div>`;
+}
+
 function animate() {
     requestAnimationFrame(animate);
     update();
@@ -46,6 +53,8 @@ function animate() {
 function update() {
     if (scenes.update())
         Subtitle(scenes.current_text);
+
+    Timecode();
 }
 
 async function start() {
@@ -56,6 +65,9 @@ async function start() {
 }
 
 function render_timeline() {
+    const video = scenes.video;
+    const timeline = scenes.timeline;
+
     // render timeline
     resize_canvas_to_client_size(canvas, true);
     const cw = canvas.width;
@@ -70,8 +82,6 @@ function render_timeline() {
 
     {
         // scenes
-        ctx.fillStyle = '#745';
-        ctx.strokeStyle = 'rgba(255,255,255,0.125)';
         ctx.lineWidth = 1;
         for (let i = 0; i < timeline.length; i += 2) {
             const t0 = timeline[i].time;
@@ -80,8 +90,10 @@ function render_timeline() {
             assert(text);
             const x0 = Math.floor(dx * t0);
             const x1 = Math.floor(dx * t1);
+            ctx.fillStyle = '#745';
             ctx.fillRect(x0, 0, x1-x0, ch);
-            ctx.strokeRect(x0, 0, x1-x0-1, ch);
+            ctx.fillStyle = 'rgba(0,0,0, 0.5)';
+            ctx.fillRect(x0, 0, 1, ch);
         }
     }
 
@@ -134,6 +146,9 @@ document.addEventListener('keydown', e => {
         case 'KeyM':
             scenes.toggle_muted();
             break;
+        case 'Home':
+            scenes.video.currentTime = 0;
+            break;
         case 'ArrowLeft':
             scenes.jump_to_next_marker(-1);
             break;
@@ -148,6 +163,7 @@ document.addEventListener('keydown', e => {
 });
 
 function scrub_to_input_event(e) {
+    const video = scenes.video;
     const cw = canvas.width;
     const x = e.offsetX;
     const t = video.duration * (x / cw);

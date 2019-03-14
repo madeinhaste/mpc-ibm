@@ -59,3 +59,13 @@ video {
     font-style: normal;
     font-weight: 600;
 }
+
+.timecode {
+    position: absolute;
+    top: 0; left: 0;
+    padding: 0 8px;
+    font-family: 'IBM Plex Mono';
+    font-size: 20px;
+    white-space: pre-line;
+    background-color: rgba(0,0,0, 0.5);
+}

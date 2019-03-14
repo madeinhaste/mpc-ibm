@@ -1,3 +1,6 @@
+import H from './hyperHTML';
+import {each_line} from './utils';
+
 const urls = {
     video: 'videos/smartscenes-190313.mp4',
     timecodes: 'data/smartscenes-timecodes.txt',
@@ -9,7 +12,7 @@ export function init_scenes() {
 
     const video = H`
     <video muted autoplay loop playsinline webkit-playsinline>
-        <source src=${urls.video} type=video/mp4>
+        <source src=${urls.video} type="video/mp4">
     </video>`;
 
     function await_video_metadata() {
@@ -69,11 +72,15 @@ export function init_scenes() {
     return {
         video,
         ready,
+        update,
         toggle_playback,
         toggle_muted,
         jump_to_next_marker,
         get current_text() {
             return timeline_idx < 0 ? null : timeline[timeline_idx].text;
+        },
+        get timeline() {
+            return timeline;
         },
     };
 }
