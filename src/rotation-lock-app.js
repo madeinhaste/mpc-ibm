@@ -187,8 +187,8 @@ document.addEventListener('touchstart', e => {
     {
         scenes.video.play();
     }
-    e.preventDefault();
-}, {passive:false});
+    //e.preventDefault();
+}, {passive: true});
 
 /*
 // fullscreen API
