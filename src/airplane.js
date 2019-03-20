@@ -47,7 +47,7 @@ let cockpit_visible = false;
 let clouds_enabled = true;
 let trails_enabled = true;
 let developer_enabled = !!options.dev;
-let debug_enabled = false;
+let debug_enabled = true;
 let mouse_enabled = !developer_enabled;
 show_cockpit(cockpit_visible);
 
@@ -279,7 +279,7 @@ const tex_equi = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
 }
 
 let aerial = false;
-let speed = 3.0;
+let speed = 7.0;
 
 const shake = {
     amount: 0,
@@ -891,10 +891,13 @@ let distance_from_closest_spline_pos = 0;
 function update_player() {
     vec3.set(V, 0, 0.3, -1);
     vec3.transformQuat(V, V, persp.rot);
-    vec3.scaleAndAdd(persp.pos, persp.pos, V, 0.05*speed);
 
     // gravity
-    persp.pos[1] -= 0.3 * 0.05 * speed;
+    {
+        const S = 0.05 * speed;
+        vec3.scaleAndAdd(persp.pos, persp.pos, V, S);
+        persp.pos[1] -= 0.3 * S;
+    }
 
     {
         const P = persp.pos;
@@ -945,12 +948,16 @@ function update_player() {
             {
                 let d = (distance_from_closest_spline_pos - 3) / 10;
                 if (d > 0) {
-                    shake.amount = lerp(shake.amount, d * 3.0, 0.5);
+                    shake.amount = lerp(shake.amount, d, 0.1);
                 } else {
                     shake.amount *= 0.5;
                     if (shake.amount < 0.01)
                         shake.amount = 0;
                 }
+            }
+
+            if (autopilot_enabled) {
+                shake.amount *= 0.5;
             }
 
             //const u = clamp(distance_from_closest_spline_pos/30, 0, 1);
@@ -975,6 +982,8 @@ function update_player() {
                     quat.normalize(rot_target, rot_target);
                     autopilot_enabled = true;
                 }
+            } else {
+                shake.amount *= 0.8;
             }
         }
     }
