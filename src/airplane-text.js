@@ -101,7 +101,8 @@ export function init_text() {
                     v_fog = fog * fog;
 
                     // fade out clouds as the approach near plane
-                    v_fade = pow(fog, 5.0);
+                    //v_fade = pow(fog, 5.0);
+                    v_fade = smoothstep(1.00, 0.85, fog);
                 }
 
                 gl_Position = u_mvp * P;
@@ -116,10 +117,29 @@ export function init_text() {
             uniform sampler2D u_texture;
 
             void main() {
-                //vec3 fogColor = vec3(0.777, 0.824, 0.897);
+                // white on black
+                vec3 C = 1.0 - texture2D(u_texture, v_coord).rgb;
+
+                // need to reduce white by fog/fade
+                /*
+                if (v_coord.x < 0.3333)
+                    C = mix(vec3(1,0,0), vec3(0,1,0), v_fog);
+                else if (v_coord.x < 0.6666)
+                    C = mix(vec3(1,0,0), vec3(0,1,0), v_fade);
+                else
+                    C = mix(vec3(1,0,0), vec3(0,1,0), min(v_fog, v_fade));
+                */
+
+                /*
                 vec3 C = 1.0 - v_fog * texture2D(u_texture, v_coord).rgb;
                 C = mix(C, vec3(1), v_fade);
-                //C = mix(C, vec3(1,0,0), v_fog);
+
+                if (C.g < 0.7) {
+                    C.rb = vec2(0);
+                }
+                */
+
+                C = mix(vec3(1,1,1), C, min(v_fog, v_fade));
 
                 //C *= pow(v_fog, 1.0);
                 //C *= (1.0 - v_fade);
