@@ -7,7 +7,7 @@ const STATE_PENDING = 1;
 const STATE_ALIVE = 2;
 
 export const max_length = 256;
-export const max_count = 32;
+export const max_count = 1024;
 export const vertex_stride = 16;
 
 let trails = [];
@@ -55,6 +55,19 @@ export function init_trails() {
         };
         palette(trail.color, Math.random());
         trails.push(trail);
+    }
+
+    function update_palette(params) {
+        const c0 = params.trail_color_0;
+        const c1 = params.trail_color_1;
+
+        trails.forEach(t => {
+            // use for random parameter
+            const u = t.time_offset;
+            const out = t.color;
+            vec3.lerp(out, c0, c1, u);
+            vec3.scale(out, out, 1/255);
+        });
     }
 
     function update(persp, cps) {
@@ -237,10 +250,14 @@ export function init_trails() {
         //pgm.uniform4f('u_color0', 0.0, 0.8, 1.0, 1.0);
         //pgm.uniform4f('u_color1', 0.5, 0.2, 0.4, 1.0);
         pgm.uniform2fv('u_fogrange', env.fog_range);
-        pgm.uniform2f('u_scale', 0.5, 1.0);
+        pgm.uniform2f('u_scale', env.params.trail_width, 1.0);
 
         gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+        const params = env.params;
+        if (params.trail_blend === 'add')
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+        else
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         //gl.blendFunc(gl.DST_COLOR, gl.ZERO);
         //gl.enable(gl.DEPTH_TEST);
         //gl.enable(gl.CULL_FACE);
@@ -260,7 +277,8 @@ export function init_trails() {
         //ext.vertexAttribDivisorANGLE(attr_Q, 1);
 
         // TODO
-        for (let i = 0; i < max_count; ++i) {
+        const trails_count = Math.floor(env.params.trail_amount);
+        for (let i = 0; i < trails_count; ++i) {
             const trail = trails[i];
             if (trail.state !== STATE_ALIVE)
                 continue;
@@ -292,7 +310,11 @@ export function init_trails() {
         gl.disable(gl.BLEND);
     }
 
-    return { update, draw: draw2 };
+    return {
+        update,
+        update_palette,
+        draw: draw2,
+    };
 }
 
 worker.onmessage = function(e) {

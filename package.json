@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "dat.gui": "^0.7.5",
     "gl-matrix": "^3.0.0",
     "howler": "^2.1.1",
     "hyperhtml": "^2.25.4",

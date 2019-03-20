@@ -56,12 +56,16 @@ export function init_clouds() {
             attribute vec2 a_coord;
             attribute vec3 a_position;
             attribute vec2 a_scale_rotate;
+            uniform vec2 u_scale_rotate;
             varying float v_fog;
             varying float v_fade;
             varying vec2 v_coord;
+            varying float v_dircol;
+            varying float v_ambcol;
             uniform mat4 u_mvp;
             uniform mat4 u_view;
             uniform vec2 u_fogrange;
+            uniform float u_ambshade;
 
             void main() {
                 vec4 P;
@@ -70,8 +74,8 @@ export function init_clouds() {
                     vec2 C = 2.0 * (a_coord - 0.5);
 
                     {
-                        float scale = a_scale_rotate.x;
-                        float rotate = a_scale_rotate.y;
+                        float scale = u_scale_rotate.x * a_scale_rotate.x;
+                        float rotate = u_scale_rotate.y * a_scale_rotate.y;
                         float c = scale * cos(rotate);
                         float s = scale * sin(rotate);
                         mat2 M = mat2(c, s, -s, c);
@@ -94,6 +98,18 @@ export function init_clouds() {
                     v_fade = pow(fog, 100.0);
                 }
 
+                {
+                    // directional sun color
+                    vec3 sun_pos = vec3(-300, 100, -500);
+                    vec3 v1 = normalize(sun_pos - a_position);
+                    vec3 v2 = normalize(P.xyz - a_position);
+                    float d = dot(v1, v2);
+                    v_dircol = d;
+
+                    // ambient height
+                    v_ambcol = mix(u_ambshade, 1.0, smoothstep(-5.0, 1.0, P.y));
+                }
+
                 gl_Position = u_mvp * P;
                 v_coord = a_coord;
             }
@@ -103,28 +119,62 @@ export function init_clouds() {
             varying float v_fog;
             varying vec2 v_coord;
             varying float v_fade;
+            varying float v_dircol;
+            varying float v_ambcol;
             uniform sampler2D u_texture;
             uniform sampler2D u_texture_sky;
             uniform bool u_use_texture;
+            uniform vec3 u_dircolor;
+            uniform vec3 u_wire_color;
 
             void main() {
+                /*
+                float depth = gl_FragCoord.z / gl_FragCoord.w;
+                float fogNear = 100.0;
+                float fogFar = 300.0;
+                float fogFactor = smoothstep( fogNear, fogFar, depth );
+                //vec3 fogColor = vec3(.24,.376,.498);
+                vec3 fogColor = vec3(0.777, 0.824, 0.897);
+
+                gl_FragColor = texture2D( u_texture, v_coord );
+                gl_FragColor.w *= pow( gl_FragCoord.z, 20.0 );
+                gl_FragColor = mix( gl_FragColor, vec4( fogColor, gl_FragColor.w ), fogFactor );
+
+                //gl_FragColor = vec4(fogFactor,0,0,1);
+                //gl_FragColor.a *= (1.0 - v_fade);
+                */
                 vec4 C;
+                vec3 fogColor = vec3(0.777, 0.824, 0.897);
                 if (u_use_texture) {
                     C = texture2D(u_texture, v_coord);
 
-                    vec3 S = texture2D(u_texture_sky, v_coord).rgb;
-                    C.rgb += (C.a)*S*0.5;
+                    //vec3 S = texture2D(u_texture_sky, v_coord).rgb;
+                    //C.rgb += (C.a)*S*0.5;
 
-                    C.a *= v_fog;
+                    C.a *= pow(v_fog, 1.0);
+                    //C.rgb = mix(C.rgb, fogColor, C.a);
 
                     //C = vec4(v_fog*C.xyz*C.a, v_fog*C.a);
+                    C.a *= (1.0 - v_fade);
+
+                    {
+                        //vec3 sun_col = vec3(1.5, 0.5, 0.2);
+                        C.rgb *= v_ambcol;
+                        C.rgb = mix(C.rgb, u_dircolor, clamp(v_dircol, 0.0, 1.0));
+                    }
+
                 } else {
-                    C = vec4(1, 1, 0, v_fog);
+                    //C = vec4(1, 1, 0, v_fog);
+                    C = vec4(u_wire_color, 1.0);
                 }
                 //C.rgb = mix(C.rgb, vec3(0.8, 0.6, 0.7), 1.0-v_fade);
                 //C.rgb = mix(C.rgb, vec3(1,0,0), v_fade);
-                C.a *= (1.0 - v_fade);
+
+                //C.a = 1.0;
                 gl_FragColor = C;
+
+                //gl_FragColor.rgb = vec3(v_dircol,0,0);
+                //gl_FragColor.a = 1.0;
             }
         `,
     });
@@ -175,7 +225,7 @@ export function update_clouds(persp, init) {
     }
 }
 
-export function draw_clouds(persp, fog_range, ext, wire) {
+export function draw_clouds(persp, fog_range, ext, wire, params) {
     var pgm = cloud_program.use();
     pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
     pgm.uniformMatrix4fv('u_view', persp.view);
@@ -184,6 +234,14 @@ export function draw_clouds(persp, fog_range, ext, wire) {
     pgm.uniformSampler2D('u_texture', texture);
     pgm.uniformSampler2D('u_texture_sky', texture_sky);
     pgm.uniform1i('u_use_texture', wire ? 0 : 1);
+
+    {
+        const c = params.sun_color;
+        const s = params.sun_strength/255;
+        pgm.uniform3f('u_dircolor', s*c[0], s*c[1], s*c[2]);
+        pgm.uniform1f('u_ambshade', 1-params.ambient_shading);
+        pgm.uniform2f('u_scale_rotate', params.cloud_scale, params.cloud_rotate);
+    }
 
     // non-instanced attrib
     gl.bindBuffer(gl.ARRAY_BUFFER, wire ? wire_buffer : quad_buffer);
@@ -209,6 +267,7 @@ export function draw_clouds(persp, fog_range, ext, wire) {
     //console.log(start);
 
     {
+        pgm.uniform3f('u_wire_color', 1,1,0);
         const offset = 20 * start;
         gl.vertexAttribPointer(attr_position, 3, gl.FLOAT, false, 20, offset + 0);
         gl.vertexAttribPointer(attr_scale_rotate, 2, gl.FLOAT, false, 20, offset + 12);
@@ -216,6 +275,7 @@ export function draw_clouds(persp, fog_range, ext, wire) {
     }
 
     {
+        pgm.uniform3f('u_wire_color', 0,1,0);
         const offset = 0;
         gl.vertexAttribPointer(attr_position, 3, gl.FLOAT, false, 20, offset + 0);
         gl.vertexAttribPointer(attr_scale_rotate, 2, gl.FLOAT, false, 20, offset + 12);

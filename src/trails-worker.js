@@ -86,7 +86,7 @@ function generate_trail(idx, cps) {
                 u = Math.random();
                 v = Math.random();
 
-                theta = u * 2 * Math.PI;
+                theta = Math.PI/2 + (lerp(-90, 90, u) * DEG2RAD);
                 r = tunnel_radius * lerp(1, 1.5, v);
             }
 

@@ -7,14 +7,38 @@ import {init_trails} from './trails';
 import {sample_cps} from './misc';
 import {Howl, Howler} from 'howler';
 import SimplexNoise from 'simplex-noise';
+import * as dat from 'dat.gui';
+import {init_text} from './airplane-text';
+
+function get_hash_options() {
+    let opts = {};
+    let h = location.hash.substr(1);
+    if (h.length == 0)
+        return opts;
+    h.split(',').forEach(s => {
+        let a = s.split('=');
+        let k = a[0];
+        if (a.length == 1)
+            opts[k] = true;
+        else
+            opts[k] = a[1];
+    });
+    return opts;
+}
+const options = get_hash_options();
+console.log('options:', options)
 
 const canvas = $('canvas');
-const gl = create_gl(canvas);
+const gl = create_gl(canvas, {
+    premultipliedAlpha: false,
+    alpha: false,
+});
+console.log(gl.getContextAttributes());
+
 const gl_ext = {
     aniso: gl.getExtension('EXT_texture_filter_anisotropic'),
     instanced: gl.getExtension('ANGLE_instanced_arrays'),
 };
-//console.log(gl.getContextAttributes());
 let fog_enabled = true;
 let grid_enabled = false;
 let wireframe = false;
@@ -22,8 +46,30 @@ let autopilot_enabled = false;
 let cockpit_visible = false;
 let clouds_enabled = true;
 let trails_enabled = true;
-let developer_enabled = false;
+let developer_enabled = !!options.dev;
+let debug_enabled = false;
+let mouse_enabled = !developer_enabled;
 show_cockpit(cockpit_visible);
+
+const params = {
+    sun_color: [255,135,0],
+    sun_strength: 1.5,
+    ambient_shading: 0.53,
+    cloud_scale: 1.3,
+    cloud_rotate: 1.0,
+    guide_color_0: [140, 140, 140],
+    guide_color_1: [65, 65, 65],
+    guide_ymin: 15,
+    guide_ymax: 24,
+    guide_wander: 5.6,
+    guide_advance: 100,
+    guide_rebuild() { reinitialize_spline() },
+    trail_color_0: [0, 0xb4, 0xa0],
+    trail_color_1: [0x5a, 0xa7, 0],
+    trail_blend: 'add',
+    trail_width: 0.5,
+    trail_amount: 32,
+};
 
 const sounds = {
     ambience: new Howl({
@@ -83,6 +129,7 @@ const spline_program = create_program({
         attribute vec4 a_Q;
 
         varying float v_fog;
+        varying float v_fade;
         varying float v_gradient;
         uniform mat4 u_mvp;
         uniform mat4 u_view;
@@ -110,6 +157,9 @@ const spline_program = create_program({
                     0.0,
                     1.0);
                 v_fog = fog * fog;
+
+                // fade out clouds as the approach near plane
+                v_fade = pow(fog, 200.0);
             }
 
             gl_Position = u_mvp * vec4(P, 1.0);
@@ -118,12 +168,14 @@ const spline_program = create_program({
     fragment: GLSL`
         precision highp float;
         varying float v_fog;
+        varying float v_fade;
         varying float v_gradient;
         uniform vec4 u_color0;
         uniform vec4 u_color1;
 
         void main() {
             gl_FragColor = v_fog * mix(u_color0, u_color1, v_gradient);
+            gl_FragColor.a *= 0.250 * (1.0 - v_fade);
         }
     `,
 });
@@ -181,6 +233,7 @@ const sky_program = create_program({
         varying vec3 v_dir;
         uniform sampler2D u_texture;
         uniform vec2 u_resolution;
+        uniform float u_rotate;
 
         float random(vec2 st) {
             return fract(sin(dot(st.xy, vec2(12.9898,78.233)))*43758.5453123);
@@ -188,19 +241,22 @@ const sky_program = create_program({
 
         void main() {
             vec3 dir = normalize(v_dir);
-            /*
             vec2 uv = vec2(
                 (atan(dir.z, dir.x) / 6.283185307179586476925286766559) + 0.5,
                 acos(dir.y) / 3.1415926535897932384626433832795);
-            uv.x = 0.0;
-            */
+            uv.x = fract(uv.x + u_rotate);
+            //uv.x = 0.0;
+            vec3 C = texture2D(u_texture, uv).rgb;
+            gl_FragColor = vec4(C, 1.0);
+            /*
             vec2 uv = vec2(0.0, acos(dir.y) / 3.1415926535897932384626433832795);
-            uv.y += 0.01 * random(gl_FragCoord.xy / u_resolution);
+            //uv.y += 0.01 * random(gl_FragCoord.xy / u_resolution);
             
             //uv = gl_FragCoord.xy / u_resolution;
             vec3 C = texture2D(u_texture, uv).rgb;
             C *= 0.5;
             gl_FragColor = vec4(C, 1.0);
+            */
             //gl_FragColor.rg = uv;
         }
     `,
@@ -211,7 +267,9 @@ const buf_fstri = create_buffer(gl.ARRAY_BUFFER, new Float32Array([ -1, -1, 3, -
 const tex_equi = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
 {
     const img = new Image;
-    img.src = 'images/sky3.jpg';
+    //img.src = 'images/sky3.jpg';
+    //img.src = 'images/highclouds.jpg';
+    img.src = 'images/loc00184-22-8k.jpg';
     img.onload = _ => {
         gl.bindTexture(gl.TEXTURE_2D, tex_equi);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
@@ -233,7 +291,7 @@ const shake = {
 const persp = {
     pos: vec3.create(),
     rot: quat.create(),
-    fov: 30 * DEG2RAD,
+    fov: 30,
     zrange: [0.1, 500],
     proj: mat4.create(),
     view: mat4.create(),
@@ -251,6 +309,7 @@ function get_fog_range() {
 
 const spline = {
     cps: [0,20,200],
+    cp_start: 0,
     buffer: create_buffer(gl.ARRAY_BUFFER),
     debug_buffer: create_buffer(gl.ARRAY_BUFFER),
     n_shape_verts: 0,
@@ -266,14 +325,16 @@ const spline = {
 
 {
     const v = [];
-    const n = 32;
+    const n = 16;
+
+    const r = 1.0;
+    const ry = 1.0;
 
     for (let i = 0; i < n; ++i) {
         const theta = 2*Math.PI * i/(n-1);
-        const r = 1.0;
 
         const x = r*Math.cos(theta);
-        const y = r*Math.sin(theta);
+        const y = ry*Math.sin(theta);
 
         v.push(x, y, 1);
         v.push(x, y, 0);
@@ -285,7 +346,7 @@ const spline = {
         const r = 1.0;
 
         const x = r*Math.cos(theta);
-        const y = r*Math.sin(theta);
+        const y = ry*Math.sin(theta);
 
         v.push(x, y, 0);
         v.push(0, 0, 0);
@@ -298,9 +359,15 @@ const spline = {
 const debug = (function() {
     const el = $('.debug');
     return s => {
-        el.innerHTML = s;
+        if (s) {
+            el.innerHTML = s;
+            el.style.opacity = 1;
+        } else {
+            el.style.opacity = 0;
+        }
     };
 }());
+debug();
 
 const box = {
     verts: null,
@@ -394,7 +461,14 @@ const draw_grid = (() => {
 init_clouds();
 update_clouds(persp, true);
 
+const text = init_text();
+
 const trails = init_trails();
+function update_trails_palette() {
+    trails.update_palette(params);
+    //console.log('update palette');
+}
+update_trails_palette();
 
 function draw() {
     resize_canvas_to_client_size(canvas, false);
@@ -413,7 +487,7 @@ function draw() {
 
     grid_enabled && draw_grid();
     if (clouds_enabled)
-        draw_clouds(persp, get_fog_range(), gl_ext.instanced, wireframe);
+        draw_clouds(persp, get_fog_range(), gl_ext.instanced, wireframe, params);
     draw_spline();
 
     if (trails_enabled) {
@@ -423,8 +497,20 @@ function draw() {
             n_shape_verts: spline.n_shape_verts,
             ext: gl_ext,
             fog_range: get_fog_range(),
+            params,
         };
         trails.draw(env);
+    }
+
+    if (1) {
+        const env = {
+            persp: persp,
+            points: spline.cps,
+            points_start: spline.cp_start,
+            fog_range: get_fog_range(),
+            params,
+        };
+        text.draw(env);
     }
 
     if (aerial) {
@@ -495,7 +581,7 @@ function update_persp() {
 
     // projection matrix
     const aspect = canvas.width / canvas.height;
-    mat4.perspective(persp.proj, persp.fov, aspect, persp.zrange[0], persp.zrange[1]);
+    mat4.perspective(persp.proj, persp.fov * DEG2RAD, aspect, persp.zrange[0], persp.zrange[1]);
 
     // view-projection
     mat4.mul(persp.viewproj, persp.proj, persp.view);
@@ -543,6 +629,10 @@ function update_spline_cps() {
         if (count > 0 && (cps.length/3 > 3)) {
             cps.splice(0, 3*count);
             dirty = true;
+
+            // update start index
+            spline.cp_start += count;
+            //console.log('removed:', count);
         }
     }
 
@@ -561,18 +651,20 @@ function update_spline_cps() {
                 break;
         }
 
+        const ymin = params.guide_ymin;
+        const ymax = params.guide_ymax;
+        const wander = params.guide_wander;
+        const advance = params.guide_advance;
+
         let dp = 3*n_cps;
         while (count < min_count) {
             const x0 = cps[dp - 3];
             const y0 = cps[dp - 2];
             const z0 = cps[dp - 1];
 
-            const ymin = 5;
-            const ymax = 50;
-
-            const x1 = x0 + random_gaussian(0, 5);
-            const y1 = clamp(y0 + random_gaussian(0, 5), ymin, ymax);
-            const z1 = z0 - random_gaussian(50, 0);
+            const x1 = x0 + random_gaussian(0, wander);
+            const y1 = clamp(y0 + random_gaussian(0, wander), ymin, ymax);
+            const z1 = z0 - random_gaussian(advance, 0);
 
             cps.push(x1, y1, z1);
             dp += 3;
@@ -701,6 +793,15 @@ function update_spline() {
         rebuild_spline();
 }
 
+function reinitialize_spline() {
+    const P = persp.pos;
+    spline.cps = [P[0], P[1], P[2] + 200];
+    update_spline();
+}
+
+// for color
+const vcol = vec4.fromValues(0,0,0,1);
+
 function draw_spline() {
     if (!spline.n_verts)
         return;
@@ -710,8 +811,13 @@ function draw_spline() {
 
     pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
     pgm.uniformMatrix4fv('u_view', persp.view);
-    pgm.uniform4f('u_color0', 1.0, 0.8, 0.2, 1.0);
-    pgm.uniform4f('u_color1', 1.0, 1.0, 0.2, 1.0);
+    {
+        vec3.scale(vcol, params.guide_color_0, 1/255);
+        pgm.uniform4fv('u_color0', vcol);
+
+        vec3.scale(vcol, params.guide_color_1, 1/255);
+        pgm.uniform4fv('u_color1', vcol);
+    }
     pgm.uniform2fv('u_fogrange', get_fog_range());
     pgm.uniform2f('u_scale', aerial ? 1 : 0.05, 3.0);
 
@@ -748,6 +854,7 @@ function draw_spline() {
 
 const proj_inv = mat4.create();
 const view_inv = mat3.create();
+let sky_rotate = 0.310;
 
 function draw_sky() {
     const pgm = sky_program.use();
@@ -769,6 +876,7 @@ function draw_sky() {
 
     pgm.uniformSampler2D('u_texture', tex_equi);
     pgm.uniform2f('u_resolution', canvas.width, canvas.height);
+    pgm.uniform1f('u_rotate', sky_rotate);
     gl.bindBuffer(gl.ARRAY_BUFFER, buf_fstri);
     pgm.vertexAttribPointer('a_position', 2, gl.FLOAT, false, 0, 0);
     gl.disable(gl.CULL_FACE);
@@ -871,7 +979,9 @@ function update_player() {
         }
     }
 
-    debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}  shake: ${shake.amount.toFixed(3)}`);
+    if (debug_enabled) {
+        debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}  shake: ${shake.amount.toFixed(3)} sky: ${sky_rotate.toFixed(3)} fov: ${persp.fov}`);
+    }
 
     if (aerial)
         quat.identity(rot_target);
@@ -895,7 +1005,38 @@ function animate() {
 
 animate();
 
+const gui = (function() {
+    if (!developer_enabled)
+        return null;
+
+    const gui = new dat.GUI();
+    gui.addColor(params, 'sun_color');
+    gui.add(params, 'sun_strength', 0, 5);
+    gui.add(params, 'ambient_shading', 0, 1);
+
+    gui.add(params, 'cloud_scale', 0, 5);
+    gui.add(params, 'cloud_rotate', 0, 1);
+
+    gui.addColor(params, 'guide_color_0');
+    gui.addColor(params, 'guide_color_1');
+    gui.add(params, 'guide_ymin', 0, 100);
+    gui.add(params, 'guide_ymax', 0, 100);
+    gui.add(params, 'guide_wander', 0, 10);
+    gui.add(params, 'guide_advance', 10, 100);
+    gui.add(params, 'guide_rebuild');
+
+    gui.addColor(params, 'trail_color_0').onChange(update_trails_palette);
+    gui.addColor(params, 'trail_color_1').onChange(update_trails_palette);
+    gui.add(params, 'trail_blend', ['normal', 'add']);
+    gui.add(params, 'trail_width', 0, 3);
+    gui.add(params, 'trail_amount', 0, 1024);
+}());
+
 document.onmousemove = e => {
+    if (!mouse_enabled) {
+        return;
+    }
+
     const mx = 2*(e.offsetX / canvas.width) - 1;
     const my = 2*(e.offsetY / canvas.height) - 1;
 
@@ -912,8 +1053,55 @@ document.onkeydown = e => {
         e.preventDefault();
     }
 
+    if (e.code == 'KeyV') {
+        clouds_enabled = !clouds_enabled;
+        e.preventDefault();
+    }
+
+    if (e.code == 'KeyD') {
+        debug_enabled = !debug_enabled;
+        if (!debug_enabled)
+            debug();
+        e.preventDefault();
+    }
+
+    if (e.code == 'KeyT') {
+        trails_enabled = !trails_enabled;
+        e.preventDefault();
+    }
+
     if (!developer_enabled)
         return;
+
+    if (e.code == 'KeyS') {
+        reinitialize_spline();
+        e.preventDefault();
+    }
+
+    if (e.code == 'ArrowLeft') {
+        sky_rotate -= 0.01;
+        e.preventDefault();
+    }
+
+    if (e.code == 'ArrowRight') {
+        sky_rotate += 0.01;
+        e.preventDefault();
+    }
+
+    if (e.code == 'BracketLeft') {
+        persp.fov -= 1;
+        e.preventDefault();
+    }
+
+    if (e.code == 'BracketRight') {
+        persp.fov += 1;
+        e.preventDefault();
+    }
+
+    if (e.code == 'KeyM') {
+        mouse_enabled = !mouse_enabled;
+        e.preventDefault();
+    }
 
     if (e.code == 'KeyA') {
         aerial = !aerial;
