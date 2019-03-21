@@ -53,6 +53,7 @@ let mouse_enabled = !developer_enabled;
 show_cockpit(cockpit_visible);
 
 const params = {
+    fade: 0,
     sky_blend: 0,
     sun_color: [255,135,0],
     sun_strength: 1.5,
@@ -270,6 +271,26 @@ const sky_program = create_program({
         }
     `,
 });
+
+const fade_program = create_program({
+    name: 'fade',
+    vertex: GLSL`
+        attribute vec2 a_coord;
+
+        void main() {
+            gl_Position = vec4(a_coord, 0.0, 1.0);
+        }
+    `,
+    fragment: GLSL`
+        precision mediump float;
+        uniform vec4 u_color;
+
+        void main() {
+            gl_FragColor = u_color;
+        }
+    `,
+});
+
 
 const buf_fstri = create_buffer(gl.ARRAY_BUFFER, new Float32Array([ -1, -1, 3, -1, -1, 3 ]));
 
@@ -584,6 +605,22 @@ function draw() {
         pgm.vertexAttribPointer('a_position', 3, gl.FLOAT, false, 0, 0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, box.elems);
         gl.drawElements(gl.LINES, box.count, gl.UNSIGNED_SHORT, 0);
+    }
+    else
+    {
+        // fade
+        //if (params.fade > 0) {
+        const f = params.fade;
+        if (f > 0) {
+            const pgm = fade_program.use();
+            pgm.uniform4f('u_color', 1-f, 1-f, 1-f, 1);
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf_fstri);
+            pgm.vertexAttribPointer('a_coord', 2, gl.FLOAT, false, 0, 0);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.DST_COLOR, gl.ZERO);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            gl.disable(gl.BLEND);
+        }
     }
 }
 
@@ -1031,6 +1068,7 @@ function update_player() {
 
 const anims = {
     sky_blend: new FCurve,
+    fade: new FCurve,
 };
 
 {
@@ -1040,6 +1078,10 @@ const anims = {
         .set_key(4.0, 1)
         .set_key(5.3, 1)
         .set_key(6.5, 0);
+
+    anims.fade
+        .set_key(10, 0)
+        .set_key(11, 1);
 }
 
 function update_animation() {
@@ -1048,6 +1090,7 @@ function update_animation() {
     params.sun_strength = lerp(1.5, 0.4, params.sky_blend);
     params.ambient_shading = lerp(0.53, 1.0, params.sky_blend);
     //params.sky_blend = (Math.sin(5*time) + 1) / 2;
+    params.fade = anims.fade.evaluate(time);
 }
 
 function animate() {
@@ -1072,6 +1115,7 @@ const gui = (function() {
 
     const gui = new dat.GUI();
 
+    gui.add(params, 'fade', 0, 1).listen();
     gui.add(params, 'sky_blend', 0, 1).listen();
 
     gui.addColor(params, 'sun_color');
