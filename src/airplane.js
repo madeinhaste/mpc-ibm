@@ -4,11 +4,12 @@ import {assert, lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_s
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
 import {init_clouds, update_clouds, draw_clouds} from './clouds';
 import {init_trails} from './trails';
-import {sample_cps} from './misc';
+import {sample_cps, sample_cps_position} from './misc';
 import {Howl, Howler} from 'howler';
 import SimplexNoise from 'simplex-noise';
 import * as dat from 'dat.gui';
 import {init_text} from './airplane-text';
+import {FCurve} from './fcurve';
 
 function get_hash_options() {
     let opts = {};
@@ -912,6 +913,7 @@ const V = vec3.create();
 const Q = quat.create();
 const closest_spline_pos = vec3.create();
 let distance_from_closest_spline_pos = 0;
+let guide_position = 0;
 
 function update_player() {
     vec3.set(V, 0, 0.3, -1);
@@ -929,6 +931,9 @@ function update_player() {
         sample_cps(closest_spline_pos, spline.cps, P[2]);
         distance_from_closest_spline_pos = vec3.dist(P, closest_spline_pos);
         //console.log(vec3.str(closest_spline_pos), distance_from_closest_spline_pos);
+
+        // position along guide
+        guide_position = sample_cps_position(spline.cps, P[2]) + spline.cp_start;
     }
 
     // shake
@@ -1014,7 +1019,7 @@ function update_player() {
     }
 
     if (debug_enabled) {
-        //debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}  shake: ${shake.amount.toFixed(3)} sky: ${sky_rotate.toFixed(3)} fov: ${persp.fov}`);
+        debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}  shake: ${shake.amount.toFixed(3)} sky: ${sky_rotate.toFixed(3)} fov: ${persp.fov}  travel: ${guide_position.toFixed(3)}`);
     }
 
     if (aerial)
@@ -1024,12 +1029,34 @@ function update_player() {
     quat.normalize(persp.rot, persp.rot);
 }
 
+const anims = {
+    sky_blend: new FCurve,
+};
+
+{
+    // init animation curves
+    anims.sky_blend
+        .set_key(3.5, 0)
+        .set_key(4.0, 1)
+        .set_key(5.3, 1)
+        .set_key(6.5, 0);
+}
+
+function update_animation() {
+    const time = guide_position;
+    params.sky_blend = anims.sky_blend.evaluate(time);
+    params.sun_strength = lerp(1.5, 0.4, params.sky_blend);
+    params.ambient_shading = lerp(0.53, 1.0, params.sky_blend);
+    //params.sky_blend = (Math.sin(5*time) + 1) / 2;
+}
+
 function animate() {
     requestAnimationFrame(animate);
 
     update_player();
     update_persp();
     update_spline();
+    update_animation();
     if (clouds_enabled)
         update_clouds(persp, false);
     if (trails_enabled)
@@ -1045,7 +1072,7 @@ const gui = (function() {
 
     const gui = new dat.GUI();
 
-    gui.add(params, 'sky_blend', 0, 1);
+    gui.add(params, 'sky_blend', 0, 1).listen();
 
     gui.addColor(params, 'sun_color');
     gui.add(params, 'sun_strength', 0, 5);
@@ -1217,7 +1244,7 @@ window.addEventListener('deviceorientation', function(e) {
     const kz = 1;
     const kx = 0.1;
 
-    debug(`o=${ori}  β=${format_angle(e.beta)}  γ=${format_angle(e.gamma)}  roll=${format_angle(rz)}  pitch=${format_angle(rx)}`);
+    //debug(`o=${ori}  β=${format_angle(e.beta)}  γ=${format_angle(e.gamma)}  roll=${format_angle(rz)}  pitch=${format_angle(rx)}`);
 
     quat.rotateZ(rot_target, rot_target, kz * rz * DEG2RAD);
     quat.rotateX(rot_target, rot_target, kx * rx * DEG2RAD);
