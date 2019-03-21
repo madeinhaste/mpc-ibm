@@ -1157,18 +1157,25 @@ document.addEventListener('mousewheel', e => {
 }, {passive: true});
 
 window.addEventListener('deviceorientation', function(e) {
-    const ori = get_orientation();
     if (!(e.beta && e.gamma)) {
         // no IMU
         return;
     }
 
-    autopilot_enabled = false;
+    const ori = get_orientation();
+    if (ori !== 0) {
+        // wrong orientation
+        autopilot_enabled = true;
+        return;
+    }
 
-    //debug(`o=${ori}  α=${e.alpha.toFixed(3)}  β=${e.beta.toFixed(3)}  γ=${e.gamma.toFixed(3)}`);
+    autopilot_enabled = false;
+    //debug(`o=${ori}  α=${format_angle(e.alpha)}  β=${format_angle(e.beta)}  γ=${format_angle(e.gamma)}`);
 
     quat.identity(rot_target);
 
+    /*
+    // landscape version
     const g = e.gamma;
     let rx = 0;
     let rz = 0;
@@ -1183,12 +1190,15 @@ window.addEventListener('deviceorientation', function(e) {
         else
             rz = 180-e.beta;
     }
+    //rx += 10;
+    */
 
-
-    rx += 10;
-
-    quat.rotateZ(rot_target, rot_target, 5*rz * DEG2RAD);
-    quat.rotateX(rot_target, rot_target, 5*rx * DEG2RAD);
+    // portrait-primary
+    const rz = -e.gamma;
+    const rx = e.beta - 60;
+    const k = 3;
+    quat.rotateZ(rot_target, rot_target, k * rz * DEG2RAD);
+    quat.rotateX(rot_target, rot_target, k * rx * DEG2RAD);
 });
 
 function get_orientation() {
@@ -1239,4 +1249,10 @@ function Noise(scale=1, octaves=1) {
         v /= max_v;
         return v;
     };
+}
+
+function format_angle(x) {
+    const s = (x < 0) ? '-' : '+';
+    const n = (x < 0) ? ~~(-x) : ~~x;
+    return s + (''+n).padStart(3, 0);
 }
