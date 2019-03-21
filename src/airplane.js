@@ -269,7 +269,18 @@ const tex_equi = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
     const img = new Image;
     //img.src = 'images/sky3.jpg';
     //img.src = 'images/highclouds.jpg';
-    img.src = 'images/loc00184-22-8k.jpg';
+
+    const max_texture_size = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+
+    let size = '4k';
+    if (max_texture_size >= 8192)
+        size = '8k';
+
+    const url = `images/loc00184-22-${size}.jpg`;
+    console.log('MAX_TEXTURE_SIZE:', max_texture_size);
+    console.log('using:', url);
+
+    img.src = url;
     img.onload = _ => {
         gl.bindTexture(gl.TEXTURE_2D, tex_equi);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
