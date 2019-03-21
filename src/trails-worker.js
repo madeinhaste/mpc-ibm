@@ -1,11 +1,9 @@
 import {vec3, quat} from 'gl-matrix';
 import {lerp, random_gaussian, DEG2RAD} from './utils';
-import {max_length, vertex_stride} from './trails';
+import {max_count, max_length, vertex_stride} from './trails-common';
 import {sample_cps} from './misc';
 import SimplexNoise from 'simplex-noise';
 import {ready as sobol_ready} from './sobol';
-
-console.log('hello from trails-worker');
 
 let sobol = null;
 sobol_ready.then(SobolSequence => {

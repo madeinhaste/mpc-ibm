@@ -1,14 +1,11 @@
 import {assert, lerp, random_gaussian} from './utils';
 import {create_buffer, create_program, GLSL} from './webgl';
 import {mat3, mat4, vec2, vec3, vec4, quat} from 'gl-matrix';
+import {max_count, max_length, vertex_stride} from './trails-common';
 
 const STATE_DEAD = 0;
 const STATE_PENDING = 1;
 const STATE_ALIVE = 2;
-
-export const max_length = 256;
-export const max_count = 1024;
-export const vertex_stride = 16;
 
 let trails = [];
 let vertex_data;
