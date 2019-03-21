@@ -1000,7 +1000,7 @@ function update_player() {
     }
 
     if (debug_enabled) {
-        debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}  shake: ${shake.amount.toFixed(3)} sky: ${sky_rotate.toFixed(3)} fov: ${persp.fov}`);
+        //debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}  shake: ${shake.amount.toFixed(3)} sky: ${sky_rotate.toFixed(3)} fov: ${persp.fov}`);
     }
 
     if (aerial)
@@ -1196,9 +1196,14 @@ window.addEventListener('deviceorientation', function(e) {
     // portrait-primary
     const rz = -e.gamma;
     const rx = e.beta - 60;
-    const k = 3;
-    quat.rotateZ(rot_target, rot_target, k * rz * DEG2RAD);
-    quat.rotateX(rot_target, rot_target, k * rx * DEG2RAD);
+
+    const kz = 1;
+    const kx = 0.1;
+
+    debug(`o=${ori}  β=${format_angle(e.beta)}  γ=${format_angle(e.gamma)}  roll=${format_angle(rz)}  pitch=${format_angle(rx)}`);
+
+    quat.rotateZ(rot_target, rot_target, kz * rz * DEG2RAD);
+    quat.rotateX(rot_target, rot_target, kx * rx * DEG2RAD);
 });
 
 function get_orientation() {
