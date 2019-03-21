@@ -3,6 +3,10 @@ const commonjs = require('rollup-plugin-commonjs');
 const notify = require('rollup-plugin-notify');
 const {terser} = require('rollup-plugin-terser');
 
+// could use this for build tags
+// https://github.com/rollup/rollup-plugin-replace
+const replace = require('rollup-plugin-replace');
+
 const production = !process.env.ROLLUP_WATCH;
 
 const config = (src, dst) => ({
@@ -22,7 +26,7 @@ const config = (src, dst) => ({
     plugins: [
         resolve(),
         commonjs(),
-        production && terser(),
+        //production && terser(),
         notify(),
     ],
 });
