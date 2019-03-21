@@ -52,6 +52,7 @@ let mouse_enabled = !developer_enabled;
 show_cockpit(cockpit_visible);
 
 const params = {
+    sky_blend: 0,
     sun_color: [255,135,0],
     sun_strength: 1.5,
     ambient_shading: 0.53,
@@ -231,9 +232,11 @@ const sky_program = create_program({
     //precision highp float;
         precision mediump float;
         varying vec3 v_dir;
-        uniform sampler2D u_texture;
+        uniform sampler2D u_texture0;
+        uniform sampler2D u_texture1;
         uniform vec2 u_resolution;
         uniform float u_rotate;
+        uniform float u_crossfade;
 
         float random(vec2 st) {
             return fract(sin(dot(st.xy, vec2(12.9898,78.233)))*43758.5453123);
@@ -246,7 +249,12 @@ const sky_program = create_program({
                 acos(dir.y) / 3.1415926535897932384626433832795);
             uv.x = fract(uv.x + u_rotate);
             //uv.x = 0.0;
-            vec3 C = texture2D(u_texture, uv).rgb;
+
+            vec3 C = mix(
+                texture2D(u_texture0, uv).rgb,
+                texture2D(u_texture1, uv).rgb,
+                u_crossfade);
+
             gl_FragColor = vec4(C, 1.0);
             /*
             vec2 uv = vec2(0.0, acos(dir.y) / 3.1415926535897932384626433832795);
@@ -264,29 +272,33 @@ const sky_program = create_program({
 
 const buf_fstri = create_buffer(gl.ARRAY_BUFFER, new Float32Array([ -1, -1, 3, -1, -1, 3 ]));
 
-const tex_equi = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
+const sky_textures = [];
+
 {
-    const img = new Image;
-    //img.src = 'images/sky3.jpg';
-    //img.src = 'images/highclouds.jpg';
-
+    // load sky textures
     const max_texture_size = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-
-    let size = '4k';
-    if (max_texture_size >= 8192)
-        size = '8k';
-
-    const url = `images/loc00184-22-${size}.jpg`;
+    const size = (max_texture_size >= 8192) ? '8k' : '4k';
     console.log('MAX_TEXTURE_SIZE:', max_texture_size);
-    console.log('using:', url);
 
-    img.src = url;
-    img.onload = _ => {
-        gl.bindTexture(gl.TEXTURE_2D, tex_equi);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-        console.log('loaded:', img.src);
-    };
+    const filenames = [
+        `loc00184-22-${size}.jpg`,
+        `loc00184-22-${size}-storm.jpg`,
+    ];
+
+    filenames.forEach(filename => {
+        const tex = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
+        sky_textures.push(tex);
+
+        const url = `images/${filename}`;
+        const img = new Image;
+        img.src = url;
+        img.onload = _ => {
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+            console.log('loaded:', img.src);
+        };
+    });
 }
 
 let aerial = false;
@@ -885,9 +897,11 @@ function draw_sky() {
     pgm.uniformMatrix4fv('u_proj_inv', proj_inv);
     pgm.uniformMatrix3fv('u_view_inv', view_inv);
 
-    pgm.uniformSampler2D('u_texture', tex_equi);
+    pgm.uniformSampler2D('u_texture0', sky_textures[0]);
+    pgm.uniformSampler2D('u_texture1', sky_textures[1]);
     pgm.uniform2f('u_resolution', canvas.width, canvas.height);
     pgm.uniform1f('u_rotate', sky_rotate);
+    pgm.uniform1f('u_crossfade', params.sky_blend);
     gl.bindBuffer(gl.ARRAY_BUFFER, buf_fstri);
     pgm.vertexAttribPointer('a_position', 2, gl.FLOAT, false, 0, 0);
     gl.disable(gl.CULL_FACE);
@@ -1030,6 +1044,9 @@ const gui = (function() {
         return null;
 
     const gui = new dat.GUI();
+
+    gui.add(params, 'sky_blend', 0, 1);
+
     gui.addColor(params, 'sun_color');
     gui.add(params, 'sun_strength', 0, 5);
     gui.add(params, 'ambient_shading', 0, 1);
