@@ -1080,8 +1080,8 @@ const anims = {
         .set_key(6.5, 0);
 
     anims.fade
-        .set_key(10, 0)
-        .set_key(11, 1);
+        .set_key(11, 0)
+        .set_key(12, 1);
 }
 
 function update_animation() {
