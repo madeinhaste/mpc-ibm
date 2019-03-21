@@ -1,7 +1,10 @@
 let ws;
 
 function start_reloader() {
-    ws = new WebSocket('ws://localhost:8001');
+    const url = `ws://${location.hostname}:8001`;
+    console.log('reloader: opening', url);
+
+    ws = new WebSocket(url);
     ws.onopen = e => {
         console.log('reload:ws: open');
     };
