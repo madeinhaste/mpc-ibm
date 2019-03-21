@@ -64,7 +64,7 @@ const params = {
     guide_ymin: 15,
     guide_ymax: 24,
     guide_wander: 5.6,
-    guide_advance: 100,
+    guide_advance: 70,
     guide_rebuild() { reinitialize_spline() },
     trail_color_0: [0, 0xb4, 0xa0],
     trail_color_1: [0x5a, 0xa7, 0],

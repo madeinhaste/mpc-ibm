@@ -25,7 +25,7 @@ export function init_text() {
     const quad_buffer = create_buffer(gl.ARRAY_BUFFER, new Float32Array([ 0, 0, 1, 0, 0, 1, 1, 1 ]));
 
     const textures = [];
-    let script_location = 2;
+    let script_location = 3;
 
     script.forEach(line => {
         const tex = create_texture({
