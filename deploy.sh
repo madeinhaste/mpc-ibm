@@ -16,7 +16,10 @@ mkdir dist/videos
 
 cp -a public/bundles/airplane.bundle.js dist/bundles/
 cp -a public/bundles/trails-worker.bundle.js dist/bundles/
-cp -a public/images/{cloud10.png,cockpit.png,sky256.png,sky3.jpg,highclouds.jpg,loc00184-22-8k.jpg,loc00184-22-4k.jpg} dist/images/
+
+cp -a public/images/{cloud10.png,cockpit.png} dist/images/
+cp -a public/images/loc00184-22-*.jpg dist/images/
+
 cp -a public/data/* dist/data/
 cp -a public/sounds/* dist/sounds/
 
