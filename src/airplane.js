@@ -46,9 +46,9 @@ let wireframe = false;
 let autopilot_enabled = false;
 let cockpit_visible = false;
 let clouds_enabled = true;
-let trails_enabled = true;
+let trails_enabled = false;
 let developer_enabled = !!options.dev;
-let debug_enabled = true;
+let debug_enabled = false;
 let mouse_enabled = !developer_enabled;
 show_cockpit(cockpit_visible);
 
