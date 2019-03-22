@@ -105,7 +105,7 @@ export function init_text() {
 
                     // fade out clouds as the approach near plane
                     //v_fade = pow(fog, 5.0);
-                    v_fade = smoothstep(1.00, 0.85, fog);
+                    v_fade = smoothstep(1.00, 0.95, fog);
                 }
 
                 gl_Position = u_mvp * P;
