@@ -1,15 +1,18 @@
 import {create_buffer, create_program, create_texture, GLSL} from './webgl';
 
 const script = [
-    'The Weather Company offers solutions to\nhelp deliver real-time turbulence\nreports to pilots.',
+    'The Weather Company offers solutions',
+    'to help deliver real-time turbulence reports to pilots.',
     'So they can avoid specific weather patterns.',
     'Like lightning storms.',
-    'There are an estimated 2,000 active\nelectrical storms around the globe\nat any one time.',
+    'There are an estimated 2,000 active electrical storms…',
+    '…around the globe at any one time.',
     'Advance warnings create smoother flights.',
-    'And can help reduce the risk of\npersonal injury and asset damage.',
-    'Saving airlines up to\n$100M in damages a year.',
-    'Congratulations, you’ve arrived.',
-    'Thanks to The Weather Company solutions,\nflights like this can avoid turbulence.',
+    'And can help reduce the risk…',
+    '…of personal injury and asset damage.',
+    'Saving airlines up to $100M in damages a year.',
+    'Thanks to The Weather Company solutions,',
+    'flights like this can avoid turbulence.',
 ];
 
 const script_locations = [];

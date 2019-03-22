@@ -1074,14 +1074,14 @@ const anims = {
 {
     // init animation curves
     anims.sky_blend
-        .set_key(3.5, 0)
-        .set_key(4.0, 1)
-        .set_key(5.3, 1)
-        .set_key(6.5, 0);
+        .set_key(5.5, 0)
+        .set_key(6.0, 1)
+        .set_key(8.5, 1)
+        .set_key(11.0, 0);
 
     anims.fade
-        .set_key(11, 0)
-        .set_key(12, 1);
+        .set_key(14, 0)
+        .set_key(15, 1);
 }
 
 function update_animation() {
