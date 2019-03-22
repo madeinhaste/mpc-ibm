@@ -1,18 +1,18 @@
 import {create_buffer, create_program, create_texture, GLSL} from './webgl';
 
 const script = [
-    'The Weather Company offers solutions',
-    'to help deliver real-time turbulence reports to pilots.',
-    'So they can avoid specific weather patterns.',
+    'The Weather Company\noffers solutions',
+    'to help deliver real-time\nturbulence reports to pilots.',
+    'So they can avoid specific\nweather patterns.',
     'Like lightning storms.',
-    'There are an estimated 2,000 active electrical storms',
+    'There are an estimated\n2,000 active electrical storms',
     'around the globe at any one time.',
-    'Advance warnings create smoother flights.',
-    'And can help reduce the risk',
-    'of personal injury and asset damage.',
-    'Saving airlines up to $100M in damages a year.',
-    'Thanks to The Weather Company solutions,',
-    'flights like this can avoid turbulence.',
+    'Advance warnings create\nsmoother flights.',
+    'And can help\nreduce the risk',
+    'of personal injury\nand asset damage.',
+    'Saving airlines up to\n$100M in damages a year.',
+    'Thanks to\nThe Weather Company solutions,',
+    'flights like this\ncan avoid turbulence.',
 ];
 
 const script_locations = [];
@@ -30,7 +30,17 @@ export function init_text() {
     const textures = [];
     let script_location = 3;
 
+    let split_lines;
+    {
+        // split line for narrow screens (phones mostly)
+        const aspect = window.innerWidth / window.innerHeight;
+        split_lines = aspect < 0.75;
+    }
+
     script.forEach(line => {
+        if (!split_lines)
+            line = line.replace(/\n/g, ' ');
+
         const tex = create_texture({
             size: 4,
             //image: canvas,

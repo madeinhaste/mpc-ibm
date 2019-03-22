@@ -34,7 +34,7 @@ export function resize_canvas_to_client_size(canvas, retina) {
     if (canvas.width !== cw || canvas.height !== ch) {
         canvas.width = cw;
         canvas.height = ch;
-        console.log('resize:', cw, ch);
+        console.log(`resize: ${cw}x${ch} (${(cw/ch).toFixed(3)})`);
     }
 }
 
