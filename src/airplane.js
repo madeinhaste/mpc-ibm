@@ -324,7 +324,7 @@ const sky_textures = [];
 }
 
 let aerial = false;
-let speed = 7.0;
+let speed = 6.0;
 
 const shake = {
     amount: 0,
