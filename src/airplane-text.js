@@ -101,7 +101,7 @@ export function init_text() {
                         (z - u_fogrange[0]) / (u_fogrange[1] - u_fogrange[0]),
                         0.0,
                         1.0);
-                    v_fog = fog * fog;
+                    v_fog = pow(fog, 4.0);
 
                     // fade out clouds as the approach near plane
                     //v_fade = pow(fog, 5.0);
