@@ -953,14 +953,14 @@ let distance_from_closest_spline_pos = 0;
 let guide_position = 0;
 
 function update_player() {
-    vec3.set(V, 0, 0.3, -1);
-    vec3.transformQuat(V, V, persp.rot);
-
     // gravity
-    {
+    if (1) {
+        //vec3.set(V, 0, 0.3, -1);
+        vec3.set(V, 0, 0, -1);
+        vec3.transformQuat(V, V, persp.rot);
         const S = 0.05 * speed;
         vec3.scaleAndAdd(persp.pos, persp.pos, V, S);
-        persp.pos[1] -= 0.3 * S;
+        //persp.pos[1] -= 0.3 * S;
     }
 
     {
@@ -990,7 +990,24 @@ function update_player() {
             amp * 0.01 * shake.noise(0.738*freq*P[1], 0.392*freq*P[2]));
     }
 
+    // AUTOPILOT 2
     if (1) {
+        const P = persp.pos;
+
+        // target point
+        sample_cps(V, spline.cps, P[2] - 20);
+
+        vec3.sub(V, V, P);
+        vec3.normalize(V, V);
+        quat.rotationTo(Q, [0,0,-1], V);
+
+        const u = 0.5;
+        quat.lerp(rot_target, rot_target, Q, u);
+        quat.normalize(rot_target, rot_target);
+    }
+
+    // AUTOPILOT 1
+    if (0) {
         const P = persp.pos;
         const cps = spline.cps;
 
