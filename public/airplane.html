@@ -39,8 +39,29 @@ html, body {
     background-color: rgba(0,0,0, 0.5);
 }
 </style>
-<script src=bundles/airplane.bundle.js defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
 <body>
 <canvas class=webgl></canvas>
 <div class=cockpit></div>
 <div class=debug></div>
+
+<script src=bundles/airplane.bundle.js></script>
+<script>
+$(main);
+
+function main() {
+    const ri = new RI_Airplane;
+    const canvas = document.querySelector('canvas.webgl');
+    ri.init({
+        canvas,
+        asset_base: '/assets/rich/airplane',
+    });
+    document.addEventListener('keydown', e => {
+        if (e.code == 'KeyK') {
+            console.log('KILL');
+            ri.kill();
+            e.preventDefault();
+        }
+    });
+}
+</script>

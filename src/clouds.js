@@ -1,5 +1,6 @@
 import {lerp, clamp, random_gaussian} from './utils';
 import {create_buffer, create_program, create_texture, GLSL} from './webgl';
+import {assets} from './airplane-common';
 
 const num_clouds = 8192;
 const clouds = new Float32Array(5 * num_clouds);
@@ -10,7 +11,7 @@ let quad_buffer;
 let wire_buffer;
 let cloud_program;
 let texture;
-let texture_sky;
+//let texture_sky;
 
 export function init_clouds() {
     cloud_buffer = create_buffer(gl.ARRAY_BUFFER, clouds);
@@ -24,31 +25,12 @@ export function init_clouds() {
     });
     gl.generateMipmap(gl.TEXTURE_2D);
 
-    {
-        const img = new Image;
-        img.src = './images/cloud10.png';
-        img.onload = _ => {
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-            gl.generateMipmap(gl.TEXTURE_2D);
-        };
-    }
-
-    texture_sky = create_texture({
-        size: 256, min: gl.LINEAR, mag: gl.LINEAR,
+    assets.image('textures/airplane-cloud.png').then(img => {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.generateMipmap(gl.TEXTURE_2D);
     });
-
-    {
-        const img = new Image;
-        img.src = './images/sky256.png';
-        img.onload = _ => {
-            gl.bindTexture(gl.TEXTURE_2D, texture_sky);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-            //gl.generateMipmap(gl.TEXTURE_2D);
-        };
-    }
 
     cloud_program = create_program({
         name: 'cloud',
@@ -122,59 +104,27 @@ export function init_clouds() {
             varying float v_dircol;
             varying float v_ambcol;
             uniform sampler2D u_texture;
-            uniform sampler2D u_texture_sky;
             uniform bool u_use_texture;
             uniform vec3 u_dircolor;
             uniform vec3 u_wire_color;
 
             void main() {
-                /*
-                float depth = gl_FragCoord.z / gl_FragCoord.w;
-                float fogNear = 100.0;
-                float fogFar = 300.0;
-                float fogFactor = smoothstep( fogNear, fogFar, depth );
-                //vec3 fogColor = vec3(.24,.376,.498);
-                vec3 fogColor = vec3(0.777, 0.824, 0.897);
-
-                gl_FragColor = texture2D( u_texture, v_coord );
-                gl_FragColor.w *= pow( gl_FragCoord.z, 20.0 );
-                gl_FragColor = mix( gl_FragColor, vec4( fogColor, gl_FragColor.w ), fogFactor );
-
-                //gl_FragColor = vec4(fogFactor,0,0,1);
-                //gl_FragColor.a *= (1.0 - v_fade);
-                */
                 vec4 C;
                 vec3 fogColor = vec3(0.777, 0.824, 0.897);
                 if (u_use_texture) {
                     C = texture2D(u_texture, v_coord);
-
-                    //vec3 S = texture2D(u_texture_sky, v_coord).rgb;
-                    //C.rgb += (C.a)*S*0.5;
-
                     C.a *= pow(v_fog, 1.0);
-                    //C.rgb = mix(C.rgb, fogColor, C.a);
-
-                    //C = vec4(v_fog*C.xyz*C.a, v_fog*C.a);
                     C.a *= (1.0 - v_fade);
 
                     {
-                        //vec3 sun_col = vec3(1.5, 0.5, 0.2);
                         C.rgb *= v_ambcol;
                         C.rgb = mix(C.rgb, u_dircolor, clamp(v_dircol, 0.0, 1.0));
                     }
 
                 } else {
-                    //C = vec4(1, 1, 0, v_fog);
                     C = vec4(u_wire_color, 1.0);
                 }
-                //C.rgb = mix(C.rgb, vec3(0.8, 0.6, 0.7), 1.0-v_fade);
-                //C.rgb = mix(C.rgb, vec3(1,0,0), v_fade);
-
-                //C.a = 1.0;
                 gl_FragColor = C;
-
-                //gl_FragColor.rgb = vec3(v_dircol,0,0);
-                //gl_FragColor.a = 1.0;
             }
         `,
     });
@@ -229,10 +179,8 @@ export function draw_clouds(persp, fog_range, ext, wire, params) {
     var pgm = cloud_program.use();
     pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
     pgm.uniformMatrix4fv('u_view', persp.view);
-    //pgm.uniformMatrix3fv('bill', env.camera.bill);
     pgm.uniform2fv('u_fogrange', fog_range);
     pgm.uniformSampler2D('u_texture', texture);
-    pgm.uniformSampler2D('u_texture_sky', texture_sky);
     pgm.uniform1i('u_use_texture', wire ? 0 : 1);
 
     {
@@ -264,7 +212,6 @@ export function draw_clouds(persp, fog_range, ext, wire, params) {
 
     const start = clouds_start;
     const count = num_clouds - start;
-    //console.log(start);
 
     {
         pgm.uniform3f('u_wire_color', 1,1,0);
