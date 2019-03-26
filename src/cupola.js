@@ -1,14 +1,15 @@
 import {create_buffer, create_program, create_texture, GLSL} from './webgl';
 import {mat4, vec3, quat} from 'gl-matrix';
+import {assets} from './cimon-common.js';
 
 export function init_cupola() {
     const quad_buffer = create_buffer(
         gl.ARRAY_BUFFER, new Float32Array([ 0, 0, 1, 0, 0, 1, 1, 1 ]));
 
     const textures = {
-        cupola_0: load_texture('images/cimon/cupola-0.png'),
-        cupola_1: load_texture('images/cimon/cupola-1.png'),
-        earthrise: load_texture('images/cimon/earthrise.jpg'),
+        cupola_0: load_texture('cimon-cupola-0.png'),
+        cupola_1: load_texture('cimon-cupola-1.png'),
+        earthrise: load_texture('cimon-earthrise.jpg'),
     };
 
     const program = make_program();
@@ -93,16 +94,14 @@ function make_program() {
     });
 }
 
-function load_texture(url) {
+function load_texture(path) {
     const texture = create_texture({ size: 4, filter: gl.LINEAR });
 
-    const img = new Image;
-    img.src = url;
-    img.onload = _ => {
+    assets.image(`textures/${path}`).then(img => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-    };
+    });
 
     return texture;
 }

@@ -4,12 +4,11 @@ import {vec2, mat3, mat4, vec3, vec4, quat} from 'gl-matrix';
 import SimplexNoise from 'simplex-noise';
 import {ray_sphere_intersect, copy_vec2, copy_vec3} from './geom-utils';
 import {assert, lerp, clamp, each_line, expovariate} from './utils';
-import {Howl, Howler} from 'howler';
+import {assets} from './cimon-common.js';
 
 let visemes = null;
 (function() {
-    fetch('data/cimon-visemes.txt')
-        .then(r => r.text())
+    assets.text('data/cimon-visemes.txt')
         .then(text => {
             const data = [];
             each_line(text, line => {
@@ -32,19 +31,12 @@ export function init_cimon(gl_ext) {
     let speech_count = 0;
 
     const sounds = {
-        ambience: new Howl({
-            src: ['sounds/cimon_ambience.mp4'],
-            autoplay: true,
-            loop: true,
-        }),
-        speech: new Howl({
-            src: ['sounds/cimon_fx.mp4'],
-            preload: true,
+        ambient: assets.sound('sounds/cimon-ambient', {autoplay: true, loop:true}),
+        vocal: assets.sound('sounds/cimon-vocal', {
             onload() {
-                speech_duration = this.duration() * 1000;
+                speech_duration = 1000 * this.duration();
             },
             onplay() {
-                //console.log('play');
                 speech_started = performance.now();
                 speech_playing = true;
                 ++speech_count;
@@ -56,16 +48,9 @@ export function init_cimon(gl_ext) {
         }),
     };
 
-    sounds.ambience.play();
+    sounds.ambient.play();
 
-    //let next_bing_time = 0;
-    //const bing_interval = 3000;
-
-    //const model_url = 'data/grp016_tri.obj';
-    const model_url = 'data/cimon_001.obj';
-
-    fetch(model_url)
-        .then(r => r.text())
+    assets.text('data/cimon-model.obj')
         .then(parse_OBJ)
         .then(init_mesh_from_obj);
 
@@ -79,9 +64,9 @@ export function init_cimon(gl_ext) {
 
     const aniso = gl_ext.aniso;
     const textures = {
-        color: load_texture('images/cimon/grp016_AlbedoM.png', aniso),
-        normal: load_texture('images/cimon/grp016_Normal.png', aniso),
-        gloss: load_texture('images/cimon/grp016_Gloss.png', aniso),
+        color: load_texture('cimon-color.png', aniso),
+        normal: load_texture('cimon-normal.png', aniso),
+        gloss: load_texture('cimon-gloss.png', aniso),
         faces: load_face_textures(),
         envmap: load_cubemap_texture(),
     };
@@ -90,9 +75,8 @@ export function init_cimon(gl_ext) {
     let next_face_time = 3000;
 
     function load_face_textures() {
-        return Array.from('abcde')
-            .map(ch => load_texture(
-                `images/cimon/faces/screenface_${ch}.png`));
+        return Array.from('01234')
+            .map(ch => load_texture(`cimon-screen-${ch}.png`));
     }
 
     const actor = {
@@ -398,9 +382,7 @@ export function init_cimon(gl_ext) {
                 pgm.uniformSampler2D('u_tex_normal', textures.normal);
                 pgm.uniformSampler2D('u_tex_gloss', textures.gloss);
                 pgm.uniformSamplerCube('u_tex_envmap', textures.envmap);
-                //pgm.uniform4f('u_shading_params', 0.5, 0.1, 0.5, 0.0);
                 pgm.uniform4f('u_shading_params', 0.4, 0.15, 0.7, 0);
-                //pgm.uniform4f('u_shading_params', 0.1, 0, 0, 0);
                 pgm.uniform1f('u_normal_mix', 1);
             }
             else if (part.name == 'cimon_face') {
@@ -452,7 +434,7 @@ export function init_cimon(gl_ext) {
 
     function start_speech(env) {
         if (!speech_playing && (speech_count < 1))
-            sounds.speech.play();
+            sounds.vocal.play();
     }
 
     return {update, draw, add_force, hit_test, set_interest, start_speech};
@@ -614,7 +596,7 @@ function make_program() {
     });
 }
 
-function load_texture(url, aniso) {
+function load_texture(path, aniso) {
     const texture = create_texture({
         size: 4,
         min: gl.LINEAR_MIPMAP_LINEAR,
@@ -627,14 +609,12 @@ function load_texture(url, aniso) {
 
     gl.generateMipmap(gl.TEXTURE_2D);
 
-    const img = new Image;
-    img.src = url;
-    img.onload = _ => {
+    assets.image(`textures/${path}`).then(img => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
         gl.generateMipmap(gl.TEXTURE_2D);
-    };
+    });
 
     return texture;
 }
@@ -780,23 +760,20 @@ function load_cubemap_texture() {
         gl.TEXTURE_CUBE_MAP_POSITIVE_Z
     ];
 
-    Array.from('bdflrt').forEach((ch, idx) => {
+    //Array.from('bdflrt').forEach((ch, idx) => {
+    Array.from('012345').forEach((ch, idx) => {
         // alloc
         const side = sides[idx];
         gl.texImage2D(side, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 
         // load
-        const url = `images/cimon/envmap/face-${ch}.png`;
-        const img = new Image;
-        img.src = url;
-        img.onload = _ => {
+        assets.image(`textures/cimon-env-${ch}.png`).then(img => {
             gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
             gl.texImage2D(side, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-            //console.log(idx, url);
             //gl.generateMipmap(gl.TEXTURE_2D);
-        };
+        });
     });
 
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
