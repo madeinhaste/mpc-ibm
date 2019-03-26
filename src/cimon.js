@@ -6,8 +6,9 @@ import {ray_sphere_intersect, copy_vec2, copy_vec3} from './geom-utils';
 import {assert, lerp, clamp, each_line, expovariate} from './utils';
 import {assets} from './cimon-common.js';
 
-let visemes = null;
-(function() {
+export function init_cimon(gl_ext) {
+    let visemes = null;
+
     assets.text('data/cimon-visemes.txt')
         .then(text => {
             const data = [];
@@ -22,9 +23,7 @@ let visemes = null;
             visemes = data;
             console.log('got visemes:', data.length/15);
         });
-}());
 
-export function init_cimon(gl_ext) {
     let speech_started = -Infinity;
     let speech_duration;
     let speech_playing = false;

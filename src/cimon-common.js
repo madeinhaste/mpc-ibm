@@ -1,8 +1,7 @@
 import {Howl, Howler} from 'howler';
 
 export const assets = function() {
-    // asset loader
-    const base = 'assets/rich/cimon';
+    let base = 'assets/rich/cimon';
 
     function text(path) {
         return fetch(`${base}/${path}`).then(r => r.text());
@@ -22,6 +21,10 @@ export const assets = function() {
         return new Howl(Object.assign({src}, opts));
     }
 
-    return {text, image, sound};
+    function set_base(path) {
+        base = path;
+    }
+
+    return {set_base, text, image, sound};
 }();
 

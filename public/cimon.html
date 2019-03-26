@@ -51,8 +51,28 @@ canvas {
     background-color: #400;
 }
 </style>
-
-<script src=bundles/cimon-app.bundle.js defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
 <body>
 <canvas></canvas>
 <div class=debug></div>
+
+<script src=bundles/cimon-app.bundle.js></script>
+<script>
+$(main);
+
+function main() {
+    const ri = new RI_Cimon;
+    const canvas = document.querySelector('canvas');
+    ri.init({
+        canvas,
+        asset_base: '/assets/rich/cimon',
+    });
+    document.addEventListener('keydown', e => {
+        if (e.code == 'KeyK') {
+            console.log('KILL');
+            ri.kill();
+            e.preventDefault();
+        }
+    });
+}
+</script>
