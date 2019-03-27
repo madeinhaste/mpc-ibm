@@ -13,7 +13,7 @@ import {init_grid} from './grid';
 import {PickRay} from './pick-ray';
 import {assets} from './cimon-common.js';
 
-function init_cimon_app(opts) {
+export function init_cimon_app(opts) {
     let canvas = opts.canvas;
     if (opts.asset_base)
         assets.set_base(opts.asset_base);
@@ -319,25 +319,10 @@ function init_cimon_app(opts) {
             kill_callback = cleanup;
     }
 
+    // start speaking after 1 sec
+    setTimeout(function() {
+        cimon.start_speech(env);
+    }, 3000);
+
     return {kill};
 }
-
-class RI_Cimon {
-    constructor() {
-        this.app = null;
-    }
-
-    init(opts) {
-        if (!this.app)
-            this.app = init_cimon_app(opts);
-    }
-
-    kill() {
-        if (this.app) {
-            this.app.kill();
-            this.app = null;
-        }
-    }
-}
-
-window.RI_Cimon = RI_Cimon;

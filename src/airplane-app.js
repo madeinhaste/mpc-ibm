@@ -10,7 +10,7 @@ import {init_text} from './airplane-text';
 import {FCurve} from './fcurve';
 import {assets} from './airplane-common';
 
-function init_airplane_app(opts) {
+export function init_airplane_app(opts) {
     let canvas = opts.canvas;
     if (opts.asset_base)
         assets.set_base(opts.asset_base);
@@ -19,7 +19,7 @@ function init_airplane_app(opts) {
         premultipliedAlpha: false,
         alpha: false,
     });
-    console.log(gl.getContextAttributes());
+    //console.log(gl.getContextAttributes());
 
     const gl_ext = {
         aniso: gl.getExtension('EXT_texture_filter_anisotropic'),
@@ -269,7 +269,6 @@ function init_airplane_app(opts) {
         // load sky textures
         const max_texture_size = gl.getParameter(gl.MAX_TEXTURE_SIZE);
         const size = (max_texture_size >= 8192) ? '8k' : '4k';
-        console.log('MAX_TEXTURE_SIZE:', max_texture_size);
 
         const filenames = [
             `airplane-env-clear-${size}.jpg`,
@@ -283,7 +282,6 @@ function init_airplane_app(opts) {
                 gl.bindTexture(gl.TEXTURE_2D, tex);
                 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-                console.log('loaded:', img.src);
             });
         });
     }
@@ -367,6 +365,7 @@ function init_airplane_app(opts) {
     }
 
     const debug = (function() {
+        /*
         const el = $('.debug');
         return s => {
             if (s) {
@@ -376,6 +375,8 @@ function init_airplane_app(opts) {
                 el.style.opacity = 0;
             }
         };
+        */
+        return function() {};
     }());
     debug();
 
@@ -1337,6 +1338,7 @@ function init_airplane_app(opts) {
     add_events();
 
     function cleanup() {
+        console.log('RI_Airplane: cleanup');
         Howler.unload();
         remove_events();
 
@@ -1350,25 +1352,6 @@ function init_airplane_app(opts) {
             kill_callback = cleanup;
     }
 
+    console.log('RI_Airplane: init done', canvas);
     return {kill};
 }
-
-class RI_Airplane {
-    constructor() {
-        this.app = null;
-    }
-
-    init(opts) {
-        if (!this.app)
-            this.app = init_airplane_app(opts);
-    }
-
-    kill() {
-        if (this.app) {
-            this.app.kill();
-            this.app = null;
-        }
-    }
-}
-
-window.RI_Airplane = RI_Airplane;

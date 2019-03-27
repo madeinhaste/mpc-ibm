@@ -11,7 +11,7 @@ html, body {
     font-family: 'IBM Plex Sans';
 }
 
-canvas {
+.webgl {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
     background-color: black;
@@ -53,20 +53,16 @@ canvas {
 </style>
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
 <body>
-<canvas></canvas>
+<canvas class=webgl></canvas>
 <div class=debug></div>
 
-<script src=bundles/cimon-app.bundle.js></script>
+<script src=bundles/rich-apps.bundle.js></script>
 <script>
 $(main);
 
 function main() {
-    const ri = new RI_Cimon;
-    const canvas = document.querySelector('canvas');
-    ri.init({
-        canvas,
-        asset_base: '/assets/rich/cimon',
-    });
+    const richApp = new RI_Cimon({ assetsPath: '/assets/rich/cimon' });
+    richApp.init({ canvas: $('canvas.webgl')[0] });
     document.addEventListener('keydown', e => {
         if (e.code == 'KeyK') {
             console.log('KILL');

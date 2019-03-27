@@ -21,7 +21,7 @@ export function init_cimon(gl_ext) {
         })
         .then(data => {
             visemes = data;
-            console.log('got visemes:', data.length/15);
+            //console.log('got visemes:', data.length/15);
         });
 
     let speech_started = -Infinity;
@@ -110,7 +110,7 @@ export function init_cimon(gl_ext) {
         num_verts = obj.n_vertices;
         num_elems = obj.n_elements;
         parts = obj.parts;
-        console.log(parts);
+        //console.log(parts);
     }
 
     // temps

@@ -59,10 +59,8 @@ export class FCurve {
         // XXX could be sortedIndex
         let key = _.find(this.keys, {time});
         if (key) {
-            console.log('set_key:', time, value, '(key exists)');
             key.value = value;
         } else {
-            console.log('set_key:', time, value, '(new key)');
             key = new FKey(time, value);
             key.interp = FC_EASE;
             this.keys.push(key);
@@ -74,12 +72,10 @@ export class FCurve {
     clear_key(time) {
         let idx = _.findIndex(this.keys, {time});
         if (idx < 0) {
-            console.log('clear_key:', time, '(not found)');
             return;
         }
 
         this.keys.splice(idx, 1);
-        console.log('clear_key:', time);
         return this;
     }
 
