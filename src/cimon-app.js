@@ -15,8 +15,12 @@ import {assets} from './cimon-common.js';
 
 export function init_cimon_app(opts) {
     let canvas = opts.canvas;
-    if (opts.asset_base)
-        assets.set_base(opts.asset_base);
+
+    if (typeof canvas == 'string')
+        canvas = document.querySelector(canvas);
+
+    if (opts.assetsPath)
+        assets.set_base(opts.assetsPath);
 
     assert(canvas instanceof HTMLCanvasElement);
 
