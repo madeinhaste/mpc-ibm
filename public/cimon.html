@@ -17,6 +17,13 @@ html, body {
     background-color: black;
 }
 
+video {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-color: black;
+    object-fit: cover;
+}
+
 .debug {
     position: absolute;
     top: 0; left: 0;
@@ -53,7 +60,14 @@ html, body {
 </style>
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
 <body>
-<canvas class=webgl></canvas>
+
+<div class=cimon-container>
+    <canvas class=webgl></canvas>
+    <video playsinline webkit-playsinline>
+        <source src="assets/rich/cimon/videos/cimon-intro.mp4" type="video/mp4">
+    </video>
+</div>
+
 <div class=debug></div>
 
 <script src=bundles/rich-apps.bundle.js></script>
@@ -63,6 +77,13 @@ $(main);
 function main() {
     const richApp = new RI_Cimon({ assetsPath: '/assets/rich/cimon' });
     richApp.init({ canvas: $('canvas.webgl')[0] });
+
+    const video = $('video')[0];
+    video.play();
+    video.onended = function() {
+        $(video).hide();
+        richApp.play();
+    };
     document.addEventListener('keydown', e => {
         if (e.code == 'KeyK') {
             console.log('KILL');

@@ -134,17 +134,36 @@ export function init_cimon_app(opts) {
         cimon.update(env);
     }
 
-    function animate(time) {
+    let start_time = -1;
+
+    function animate(now) {
         if (kill_callback) {
             kill_callback();
             return;
+        }
+
+        let time = 0;
+        if (now) {
+            if (start_time < 0)
+                start_time = now;
+            time = now - start_time;
         }
 
         requestAnimationFrame(animate);
         update(time);
         draw();
     }
-    animate(0);
+
+    function play() {
+        if (start_time < 0) {
+            animate();
+            setTimeout(function() { cimon.start_speech(env) }, 3000);
+        }
+    }
+
+    function replay() {
+        // TODO
+    }
 
     /*
     document.addEventListener('keydown', e => {
@@ -323,10 +342,5 @@ export function init_cimon_app(opts) {
             kill_callback = cleanup;
     }
 
-    // start speaking after 1 sec
-    setTimeout(function() {
-        cimon.start_speech(env);
-    }, 3000);
-
-    return {kill};
+    return {kill, play, replay};
 }

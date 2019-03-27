@@ -10,6 +10,7 @@ html, body {
     background-color: black;
     color: white;
     font-family: 'IBM Plex Sans';
+    overflow: hidden;
 }
 
 .webgl {
@@ -18,32 +19,48 @@ html, body {
     background-color: black;
 }
 
-.cockpit {
-    display: none;
+video {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
-    background-image: url( images/cockpit.png );
-    background-position: center;
-    background-size: cover;
-    pointer-events: none;
+    background-color: black;
+    object-fit: cover;
 }
 
-.debug {
+.overlay {
     position: absolute;
-    /* top: 10px; left: 10px; */
-    font-family: 'IBM Plex Mono';
-    font-size: 20px;
-    white-space: pre-line;
-    top: 0; left: 0;
-    padding: 4px 8px;
-    background-color: rgba(0,0,0, 0.5);
+    display: grid;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    place-items: center center;
 }
+
+.replay {
+    border: none;
+    color: white;
+    background-color: rgba(0,0,128, 0.5);
+    padding: 50px 100px;
+    font: 50px 'IBM Plex Sans';
+    cursor: pointer;
+    display: none;
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
 <body>
-<canvas class=webgl></canvas>
-<div class=cockpit></div>
-<div class=debug></div>
+
+<div class=airplane-container>
+    <canvas class=webgl></canvas>
+    <video playsinline webkit-playsinline>
+        <source src="assets/rich/airplane/videos/airplane-intro.mp4" type="video/mp4">
+    </video>
+</div>
+
+<div class=overlay>
+    <button class=replay>
+        Replay
+    </button>
+</div>
 
 <script src=bundles/rich-apps.bundle.js></script>
 <script>
@@ -51,7 +68,29 @@ $(main);
 
 function main() {
     const richApp = new RI_Airplane({ assetsPath: '/assets/rich/airplane' });
-    richApp.init({ canvas: $('canvas.webgl')[0] });
+
+    const $btnReplay = $('.replay')
+        .hide()
+        .on('click', function() {
+            $(this).hide();
+            richApp.replay();
+        });
+
+    richApp.init({
+        canvas: $('canvas.webgl')[0],
+        onEnd: onAppEnded,
+    });
+
+    function onAppEnded() {
+        $btnReplay.show();
+    }
+
+    const video = $('video')[0];
+    video.play();
+    video.onended = function() {
+        $(video).hide();
+        richApp.play();
+    };
     document.addEventListener('keydown', e => {
         if (e.code == 'KeyK') {
             console.log('KILL');

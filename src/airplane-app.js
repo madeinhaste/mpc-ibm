@@ -68,7 +68,7 @@ export function init_airplane_app(opts) {
     };
 
     const sounds = {
-        ambient: assets.sound('sounds/airplane-ambient', {autoplay: true, loop: true}),
+        ambient: assets.sound('sounds/airplane-ambient', {autoplay: false, loop: true}),
         ping: assets.sound('sounds/airplane-ping'),
     };
     let next_bing_time = 0;
@@ -810,6 +810,7 @@ export function init_airplane_app(opts) {
     function reinitialize_spline() {
         const P = persp.pos;
         spline.cps = [P[0], P[1], P[2] + 200];
+        spline.cp_start = 0;
         update_spline();
     }
 
@@ -1063,10 +1064,29 @@ export function init_airplane_app(opts) {
         params.fade = anims.fade.evaluate(time);
     }
 
-    function animate() {
+    let start_time = -1;
+
+    function animate(now) {
         if (kill_callback) {
             kill_callback();
             return;
+        }
+
+        {
+            // test if ended
+            if (guide_position >= 16) {
+                sounds.ambient.fade(1, 0, 1000);
+                if (opts.onEnd)
+                    opts.onEnd();
+                return;
+            }
+        }
+
+        let time = 0;
+        if (now) {
+            if (start_time < 0)
+                start_time = now;
+            time = now - start_time;
         }
 
         requestAnimationFrame(animate);
@@ -1080,7 +1100,32 @@ export function init_airplane_app(opts) {
         //if (trails_enabled) trails.update(persp, spline.cps);
         draw();
     }
-    animate(0);
+
+    function play() {
+        if (start_time < 0) {
+            sounds.ambient.play();
+            sounds.ambient.fade(0, 1, 1000);
+            animate();
+        }
+    }
+
+    function replay() {
+        // how to reset everything???
+        vec3.set(persp.pos, 0, 20, 120);
+        quat.identity(rot_target);
+
+        const P = persp.pos;
+        spline.cps = [0,20,200];
+        spline.cp_start = 0;
+        update_spline();
+
+        start_time = -1;
+        guide_position = 0;
+
+        update_clouds(persp, true);
+        console.log('REPLAY');
+        play();
+    }
 
     /*
     const gui = (function() {
@@ -1359,5 +1404,5 @@ export function init_airplane_app(opts) {
     }
 
     console.log('RI_Airplane: init done', canvas);
-    return {kill};
+    return {kill, play, replay};
 }

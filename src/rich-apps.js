@@ -18,6 +18,14 @@ function make_RI_App(factory) {
                 app = null;
             }
         };
+
+        this.play = function() {
+            app && app.play();
+        };
+
+        this.replay = function() {
+            app && app.replay();
+        };
     }
 }
 
