@@ -1074,7 +1074,7 @@ export function init_airplane_app(opts) {
 
         {
             // test if ended
-            if (guide_position >= 16) {
+            if (guide_position >= 15) {
                 sounds.ambient.fade(1, 0, 1000);
                 if (opts.onEnd)
                     opts.onEnd();
