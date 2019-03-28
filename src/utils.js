@@ -91,3 +91,12 @@ export function each_line(text, callback) {
         callback(line, lineno++);
     }
 }
+
+export function check_nan(ob) {
+    for (let i = 0; i < ob.length; ++i) {
+        if (isNaN(ob[i])) {
+            console.error('NaN:', ob);
+            debugger;
+        }
+    }
+}

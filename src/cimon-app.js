@@ -85,6 +85,9 @@ export function init_cimon_app(opts) {
         //orbit.translate[1] = 5;
         orbit.distance = 1.8;
         orbit.distance = 2.8;
+
+        // update camera before loop to avoid NaNs in pickray
+        update_camera();
     }
 
     const debug = (function() {
@@ -115,10 +118,7 @@ export function init_cimon_app(opts) {
         cimon.draw(env);
     }
 
-    function update(time) {
-        env.dt = time - env.time;
-        env.time = time;
-
+    function update_camera() {
         camera.viewport[2] = canvas.width;
         camera.viewport[3] = canvas.height;
 
@@ -129,7 +129,13 @@ export function init_cimon_app(opts) {
         tilt.apply(camera.view);
 
         camera.update();
+    }
 
+    function update(time) {
+        env.dt = time - env.time;
+        env.time = time;
+
+        update_camera();
         cupola.update(env);
         cimon.update(env);
     }
