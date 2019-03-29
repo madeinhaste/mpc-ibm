@@ -1,4 +1,4 @@
-import {Howl, Howler} from 'howler';
+import {Howl, Howler} from './howler';
 
 export const assets = function() {
     let base = 'assets/rich/cimon';

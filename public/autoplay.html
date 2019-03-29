@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang=en>
+<meta charset=UTF-8>
+<meta name=viewport content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1">
+<title>mpc-ibm|autoplay</title>
+<link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans" rel=stylesheet>
+<style>
+html, body {
+    background-color: black;
+    color: white;
+    font-family: 'IBM Plex Sans';
+    overflow: hidden;
+}
+
+.debug {
+    position: absolute;
+    top: 0; left: 0;
+    padding: 4px 8px;
+    font-size: 20px;
+    white-space: pre-line;
+    background-color: rgba(0,0,0, 0.5);
+    color: white;
+    pointer-events: none;
+}
+
+.webgl-error {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(0,0,0, 1.0);
+    padding: 0;
+    margin: 0;
+    white-space: pre;
+    /* font: 14px 'IBM Plex Sans Condensed'; */
+    font: 16px 'IBM Plex Sans';
+}
+
+.overlay {
+    position: absolute;
+    display: grid;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    place-items: center center;
+}
+
+.button {
+    border: none;
+    color: white;
+    background-color: rgba(0,0,128, 0.5);
+    padding: 50px 100px;
+    font: 50px 'IBM Plex Sans';
+    cursor: pointer;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
+<body>
+
+<div class=overlay>
+    <button id=btn-start class=button>Start 3</button>
+</div>
+
+<audio id="au-ambient" loop>
+    <source src="assets/rich/cimon/sounds/cimon-ambient.m4a" type="audio/mp4"> </audio>
+
+<div class=debug></div>
+
+<script src=bundles/autoplay.bundle.js?blah></script>
+<script>
+$(main);
+
+function main() {
+    const ambient = document.querySelector('#au-ambient');
+
+    $('#btn-start').on('click touchend', function() {
+        ambient.play();
+        RI_start_audio();
+        $(this).hide();
+    });
+}
+</script>

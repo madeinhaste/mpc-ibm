@@ -49,4 +49,5 @@ module.exports = [
     //'rotation-lock-app',
     //'scenes-app',
     'rich-apps',
+    'autoplay',
 ].map(bundle);

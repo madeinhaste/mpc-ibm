@@ -9,11 +9,13 @@
     "howler": "^2.1.1",
     "hyperhtml": "^2.25.4",
     "lodash-es": "^4.17.11",
-    "simplex-noise": "^2.4.0"
+    "simplex-noise": "^2.4.0",
+    "web-audio-touch-unlock": "^1.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.4.0",
     "@babel/preset-env": "^7.4.2",
+    "audiosprite": "^0.7.1",
     "chokidar": "^2.1.2",
     "express": "^4.16.4",
     "morgan": "^1.9.1",

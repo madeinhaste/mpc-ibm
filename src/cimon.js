@@ -5,11 +5,13 @@ import SimplexNoise from 'simplex-noise';
 import {ray_sphere_intersect, copy_vec2, copy_vec3} from './geom-utils';
 import {assert, lerp, clamp, each_line, expovariate} from './utils';
 import {assets} from './cimon-common.js';
+import audiosprites from './cimon-audio-sprites.js';
+import {Howl} from './howler';
 
 export function init_cimon(gl_ext, end_callback) {
     let visemes = null;
 
-    assets.text('data/cimon-visemes.txt')
+    assets.text('data/cimon-intro-visemes.txt')
         .then(text => {
             const data = [];
             each_line(text, line => {
@@ -31,7 +33,7 @@ export function init_cimon(gl_ext, end_callback) {
 
     const sounds = {
         ambient: assets.sound('sounds/cimon-ambient', {autoplay: true, loop:true}),
-        vocal: assets.sound('sounds/cimon-vocal', {
+        vocal: assets.sound('sounds/cimon-intro', {
             onload() {
                 speech_duration = 1000 * this.duration();
             },
@@ -46,6 +48,10 @@ export function init_cimon(gl_ext, end_callback) {
                 if (end_callback)
                     end_callback();
             },
+        }),
+        dynamic: new Howl({
+            src: audiosprites.urls.map(n => `assets/rich/cimon/sounds/${n}`),
+            sprite: audiosprites.sprite,
         }),
     };
 
@@ -434,9 +440,36 @@ export function init_cimon(gl_ext, end_callback) {
     }
 
     function start_speech(env) {
-        if (!speech_playing && (speech_count < 1000))
-            sounds.vocal.play();
+        if (speech_playing)
+            return;
+
+        sounds.vocal.play();
+
+        const t = (~~(Math.random() * 48))/2;
+
+        const head = 'cimon-dynamic-head2';
+        const name = `cimon-dynamic-${t.toFixed(1)}`;
+        const tail = 'cimon-dynamic-tail';
+
+        const sprites = audiosprites.sprite;
+        const main_dur = sounds.vocal.duration();
+        const head_dur = sprites[head][1]/1000;
+        const name_dur = sprites[name][1]/1000;
+        const tail_dur = sprites[tail][1]/1000;
+
+        sounds.dynamic.play(head, false, main_dur);
+        sounds.dynamic.play(name, false, main_dur + head_dur);
+        sounds.dynamic.play(tail, false, main_dur + head_dur + name_dur);
     }
+
+    /*
+    document.addEventListener('keydown', e => {
+        if (e.code !== 'Space')
+            return;
+
+        e.preventDefault();
+    });
+    */
 
     return {update, draw, add_force, hit_test, set_interest, start_speech};
 }

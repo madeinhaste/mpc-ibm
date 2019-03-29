@@ -262,7 +262,7 @@ export function init_cimon_app(opts) {
             // no IMU
             return;
         }
-        debug(`ori: ${ori}  beta: ${e.beta.toFixed(3)}  gamma: ${e.gamma.toFixed(3)}`);
+        //debug(`ori: ${ori}  beta: ${e.beta.toFixed(3)}  gamma: ${e.gamma.toFixed(3)}`);
 
         const rot_target = tilt.rot_target;
         quat.identity(rot_target);

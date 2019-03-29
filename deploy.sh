@@ -5,7 +5,9 @@ mkdir dist
 
 cp -a public/airplane.html dist/index.html
 cp -a public/cimon.html dist/
+cp -a public/autoplay.html dist/
 cp -a public/cimon-lipsync.html dist/
+cp -a public/assets dist/assets/
 
 mkdir dist/data
 mkdir dist/bundles
@@ -13,9 +15,10 @@ mkdir dist/images
 mkdir dist/sounds
 mkdir dist/styles
 mkdir dist/videos
+mkdir dist/assets
 
-cp -a public/bundles/airplane.bundle.js dist/bundles/
-cp -a public/bundles/trails-worker.bundle.js dist/bundles/
+cp -a public/bundles/rich-apps.bundle.js dist/bundles/
+cp -a public/bundles/autoplay.bundle.js dist/bundles/
 
 cp -a public/images/{cloud10.png,cockpit.png} dist/images/
 cp -a public/images/loc00184-22-*.jpg dist/images/
@@ -40,7 +43,7 @@ cp -a public/styles/rotate.css dist/styles/
 cp -a public/styles/scenes.css dist/styles/
 cp -a public/videos/smartscenes-190313.mp4 dist/videos/
 
-archive=dist-`date +%y%m%d`.zip
-zip -r "$archive" dist/
-mv "$archive" dist/
+#archive=dist-`date +%y%m%d`.zip
+#zip -r "$archive" dist/
+#mv "$archive" dist/
 rsync -avL dist/ madeinhaste:projects/mpc-ibm/

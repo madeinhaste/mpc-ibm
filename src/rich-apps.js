@@ -39,4 +39,5 @@ window.RI_start_hook = function() {
     // init audio context
     Howler.volume(1);
     console.log('rich: sound is', Howler.state);
+    return Howler.state;
 };
