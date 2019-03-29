@@ -6,7 +6,7 @@ import {ray_sphere_intersect, copy_vec2, copy_vec3} from './geom-utils';
 import {assert, lerp, clamp, each_line, expovariate} from './utils';
 import {assets} from './cimon-common.js';
 
-export function init_cimon(gl_ext) {
+export function init_cimon(gl_ext, end_callback) {
     let visemes = null;
 
     assets.text('data/cimon-visemes.txt')
@@ -43,6 +43,8 @@ export function init_cimon(gl_ext) {
             onend() {
                 console.log('end');
                 speech_playing = false;
+                if (end_callback)
+                    end_callback();
             },
         }),
     };
@@ -432,7 +434,7 @@ export function init_cimon(gl_ext) {
     }
 
     function start_speech(env) {
-        if (!speech_playing && (speech_count < 1))
+        if (!speech_playing && (speech_count < 1000))
             sounds.vocal.play();
     }
 

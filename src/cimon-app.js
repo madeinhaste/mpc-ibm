@@ -98,7 +98,7 @@ export function init_cimon_app(opts) {
     }());
 
     const grid = init_grid(gl_ext);
-    const cimon = init_cimon(gl_ext);
+    const cimon = init_cimon(gl_ext, opts.onEnd);
     const cupola = init_cupola();
 
     function draw() {
@@ -168,7 +168,7 @@ export function init_cimon_app(opts) {
     }
 
     function replay() {
-        // TODO
+        cimon.start_speech(env);
     }
 
     /*
@@ -220,7 +220,7 @@ export function init_cimon_app(opts) {
         if (cimon.hit_test(env))  {
             const f = lerp(0.5, 2, Math.random());
             cimon.add_force([0, 0, -f]);
-            cimon.start_speech(env);
+            //cimon.start_speech(env);
         }
     }
 
