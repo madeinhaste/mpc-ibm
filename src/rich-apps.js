@@ -1,6 +1,7 @@
 import {init_cimon_app} from './cimon-app';
 import {init_airplane_app} from './airplane-app';
 import {assert} from './utils';
+import {Howler} from 'howler';
 
 function make_RI_App(factory) {
     return function(opts) {
@@ -33,3 +34,9 @@ Object.assign(window, {
     RI_Cimon: make_RI_App(init_cimon_app),
     RI_Airplane: make_RI_App(init_airplane_app),
 });
+
+window.RI_start_hook = function() {
+    // init audio context
+    Howler.volume(1);
+    console.log('rich: sound is', Howler.state);
+};
