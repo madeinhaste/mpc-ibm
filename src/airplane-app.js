@@ -1,4 +1,3 @@
-import './reloader';
 import {mat3, mat4, vec2, vec3, vec4, quat} from 'gl-matrix';
 import {assert, lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_size, redraw_func, $} from './utils';
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
