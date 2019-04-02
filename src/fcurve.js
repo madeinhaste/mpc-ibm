@@ -1,5 +1,4 @@
 import {lerp, clamp} from './utils.js';
-import _ from 'lodash-es';
 
 export const FC_STEP = 0;
 export const FC_LINE = 1;
@@ -55,9 +54,27 @@ export class FCurve {
         this.update();
     }
 
+    find_key_idx(time) {
+        const keys = this.keys;
+        const n = keys.length;
+        for (let i = 0; i < n; ++i) {
+            const k = keys[i];
+            if (k.time === time)
+                return i;
+        }
+        return -1;
+    }
+
+    find_key(time) {
+        const idx = this.find_key_idx(time);
+        if (idx < 0)
+            return null;
+        return this.keys[idx];
+    }
+
     set_key(time, value) {
         // XXX could be sortedIndex
-        let key = _.find(this.keys, {time});
+        let key = this.find_key(time);
         if (key) {
             key.value = value;
         } else {
@@ -70,7 +87,7 @@ export class FCurve {
     }
 
     clear_key(time) {
-        let idx = _.findIndex(this.keys, {time});
+        let idx = this.find_key_idx(time);
         if (idx < 0) {
             return;
         }
@@ -80,7 +97,7 @@ export class FCurve {
     }
 
     has_key(time) {
-        let idx = _.findIndex(this.keys, {time});
+        let idx = this.find_key_idx(time);
         return idx >= 0;
     }
 
