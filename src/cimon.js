@@ -6,7 +6,8 @@ import {ray_sphere_intersect, copy_vec2, copy_vec3} from './geom-utils';
 import {assert, lerp, clamp, each_line, expovariate} from './utils';
 import {assets} from './cimon-common.js';
 import audiosprites from './cimon-audio-sprites.js';
-import {Howl} from './howler';
+import {Howl, Howler} from './howler';
+import {fade_and_stop_sounds} from './misc';
 
 export function init_cimon(gl_ext, end_callback) {
     let visemes = null;
@@ -49,11 +50,16 @@ export function init_cimon(gl_ext, end_callback) {
                     end_callback();
             },
         }),
-        dynamic: new Howl({
+        dynamic: null,
+    };
+
+    // only do dynamic for webaudio context, as we need decent scheduling
+    if (Howler.usingWebAudio) {
+        sounds.dynamic = new Howl({
             src: audiosprites.urls.map(n => `assets/rich/cimon/sounds/${n}`),
             sprite: audiosprites.sprite,
-        }),
-    };
+        });
+    }
 
     sounds.ambient.play();
 
@@ -445,21 +451,23 @@ export function init_cimon(gl_ext, end_callback) {
 
         sounds.vocal.play();
 
-        const t = (~~(Math.random() * 48))/2;
+        if (sounds.dynamic) {
+            const t = (~~(Math.random() * 48))/2;
 
-        const head = 'cimon-dynamic-head2';
-        const name = `cimon-dynamic-${t.toFixed(1)}`;
-        const tail = 'cimon-dynamic-tail';
+            const head = 'cimon-dynamic-head2';
+            const name = `cimon-dynamic-${t.toFixed(1)}`;
+            const tail = 'cimon-dynamic-tail';
 
-        const sprites = audiosprites.sprite;
-        const main_dur = sounds.vocal.duration();
-        const head_dur = sprites[head][1]/1000;
-        const name_dur = sprites[name][1]/1000;
-        const tail_dur = sprites[tail][1]/1000;
+            const sprites = audiosprites.sprite;
+            const main_dur = sounds.vocal.duration();
+            const head_dur = sprites[head][1]/1000;
+            const name_dur = sprites[name][1]/1000;
+            const tail_dur = sprites[tail][1]/1000;
 
-        sounds.dynamic.play(head, false, main_dur);
-        sounds.dynamic.play(name, false, main_dur + head_dur);
-        sounds.dynamic.play(tail, false, main_dur + head_dur + name_dur);
+            sounds.dynamic.play(head, false, main_dur);
+            sounds.dynamic.play(name, false, main_dur + head_dur);
+            sounds.dynamic.play(tail, false, main_dur + head_dur + name_dur);
+        }
     }
 
     /*
@@ -471,7 +479,12 @@ export function init_cimon(gl_ext, end_callback) {
     });
     */
 
-    return {update, draw, add_force, hit_test, set_interest, start_speech};
+    function kill() {
+        console.log('cimon: kill. fade_and_stop_sounds');
+        fade_and_stop_sounds(Object.values(sounds));
+    }
+
+    return {update, draw, add_force, hit_test, set_interest, start_speech, kill};
 }
 
 function make_program() {

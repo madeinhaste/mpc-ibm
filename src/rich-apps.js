@@ -1,7 +1,7 @@
 import {init_cimon_app} from './cimon-app';
 import {init_airplane_app} from './airplane-app';
 import {assert} from './utils';
-import {Howler} from 'howler';
+import {Howl} from './howler';
 
 function make_RI_App(factory) {
     return function(opts) {
@@ -30,14 +30,14 @@ function make_RI_App(factory) {
     }
 }
 
-Object.assign(window, {
-    RI_Cimon: make_RI_App(init_cimon_app),
-    RI_Airplane: make_RI_App(init_airplane_app),
-});
+window.RI_Cimon = make_RI_App(init_cimon_app);
+window.RI_Airplane = make_RI_App(init_airplane_app);
 
 window.RI_start_hook = function() {
-    // init audio context
-    Howler.volume(1);
-    console.log('rich: sound is', Howler.state);
-    return Howler.state;
+    provoke_howler_unlock();
 };
+
+function provoke_howler_unlock() {
+    // create an empty sound to start the context and add unlock events
+    new Howl({src: 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'});
+}

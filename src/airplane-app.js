@@ -3,8 +3,7 @@ import {mat3, mat4, vec2, vec3, vec4, quat} from 'gl-matrix';
 import {assert, lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_size, redraw_func, $} from './utils';
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
 import {init_clouds, update_clouds, draw_clouds} from './clouds';
-import {sample_cps, sample_cps_position} from './misc';
-import {Howl, Howler} from 'howler';
+import {sample_cps, sample_cps_position, fade_and_stop_sounds} from './misc';
 import SimplexNoise from 'simplex-noise';
 import {init_text} from './airplane-text';
 import {FCurve} from './fcurve';
@@ -1390,7 +1389,7 @@ export function init_airplane_app(opts) {
 
     function cleanup() {
         console.log('RI_Airplane: cleanup');
-        Howler.unload();
+        fade_and_stop_sounds(Object.values(sounds));
         remove_events();
 
         // webgl cleanup: TODO

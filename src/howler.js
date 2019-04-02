@@ -276,7 +276,7 @@ _setupCodecs: function() {
  * @return {Howler}
  */
 _unlockAudio: function() {
-    console.log('Howler._unlockAudio');
+  console.log('Howler._unlockAudio');
   var self = this || Howler;
 
   // Only run this on certain browsers/devices.
@@ -377,6 +377,8 @@ _unlockAudio: function() {
         self._howls[i]._emit('unlock');
       }
     };
+
+    console.log('Howler._unlockAudio: unlocked');
   };
 
   // Setup a touch start listener to attempt an unlock in.

@@ -62,3 +62,13 @@ export function sample_cps_position(cps, zc) {
     return ((i/3)-1) + u;
 }
 
+export function fade_and_stop_sounds(sounds) {
+    // one second
+    const d = 1000;
+    // filter nulls
+    sounds = sounds.filter(s => !!s);
+    // fade volume to zero
+    sounds.forEach(s => s.fade(s.volume(), 0, d));
+    // stop
+    setTimeout(function() { sounds.forEach(s => s.stop()) }, d);
+}

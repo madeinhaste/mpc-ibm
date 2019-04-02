@@ -2,14 +2,11 @@ import './reloader';
 import {mat3, mat4, vec2, vec3, vec4, quat} from 'gl-matrix';
 import {assert, lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_size, redraw_func, $} from './utils';
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
-import {Howl, Howler} from 'howler';
-
 import {Camera} from './camera';
 import {Orbit} from './orbit';
 import {make_mouse_control} from './mouse-control';
 import {init_cimon} from './cimon';
 import {init_cupola} from './cupola';
-import {init_grid} from './grid';
 import {PickRay} from './pick-ray';
 import {assets} from './cimon-common.js';
 
@@ -97,8 +94,7 @@ export function init_cimon_app(opts) {
         };
     }());
 
-    const grid = init_grid(gl_ext);
-    const cimon = init_cimon(gl_ext, opts.onEnd);
+    let cimon = init_cimon(gl_ext, opts.onEnd);
     const cupola = init_cupola();
 
     function draw() {
@@ -110,9 +106,6 @@ export function init_cimon_app(opts) {
 
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        if (grid_enabled)
-            grid.draw(env);
 
         cupola.draw(env);
         cimon.draw(env);
@@ -141,12 +134,16 @@ export function init_cimon_app(opts) {
     }
 
     let start_time = -1;
+    let animating = false;
 
     function animate(now) {
         if (kill_callback) {
             kill_callback();
+            animating = false;
             return;
         }
+
+        animating = true;
 
         let time = 0;
         if (now) {
@@ -236,14 +233,14 @@ export function init_cimon_app(opts) {
 
     function on_touchstart(e) {
         maybe_poke_cimon(e);
-        e.preventDefault();
+        //e.preventDefault();
     }
 
     function on_touchmove(e) {
         get_window_coords(wc, e);
         env.pickray.fromWindowCoords(wc[0], wc[1]);
         cimon.set_interest(env);
-        e.preventDefault();
+        //e.preventDefault();
     }
 
     function on_devicemotion(e) {
@@ -317,8 +314,8 @@ export function init_cimon_app(opts) {
     function add_events() {
         document.addEventListener('mousemove', on_mousemove);
         document.addEventListener('mousedown', on_mousedown);
-        canvas.addEventListener('touchstart', on_touchstart);
-        canvas.addEventListener('touchmove', on_touchmove);
+        canvas.addEventListener('touchstart', on_touchstart, {passive:false});
+        canvas.addEventListener('touchmove', on_touchmove, {passive:false});
         window.addEventListener('devicemotion', on_devicemotion);
         window.addEventListener('deviceorientation', on_deviceorientation);
     }
@@ -326,8 +323,8 @@ export function init_cimon_app(opts) {
     function remove_events() {
         document.removeEventListener('mousemove', on_mousemove);
         document.removeEventListener('mousedown', on_mousedown);
-        canvas.removeEventListener('touchstart', on_touchstart);
-        canvas.removeEventListener('touchmove', on_touchmove);
+        canvas.removeEventListener('touchstart', on_touchstart, {passive:false});
+        canvas.removeEventListener('touchmove', on_touchmove, {passive:false});
         window.removeEventListener('devicemotion', on_devicemotion);
         window.removeEventListener('deviceorientation', on_deviceorientation);
     }
@@ -335,17 +332,24 @@ export function init_cimon_app(opts) {
     add_events();
 
     function cleanup() {
-        Howler.unload();
-        remove_events();
+        console.log('RI_Cimon: cleanup');
+        cimon.kill();
+        cimon = null;
 
+        remove_events();
         // webgl cleanup: TODO
         gl = null;
         window.gl = null;
     }
 
     function kill() {
-        if (!kill_callback)
-            kill_callback = cleanup;
+        console.log('RI_Cimon: kill');
+        if (animating) {
+            if (!kill_callback)
+                kill_callback = cleanup;
+        } else {
+            cleanup();
+        }
     }
 
     return {kill, play, replay};
