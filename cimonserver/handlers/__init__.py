@@ -1,5 +1,6 @@
 import re
 import tornado.web
+from tornado.concurrent import Future
 from tornado.httpclient import AsyncHTTPClient
 import xml.etree.ElementTree as ET
 import pytz
@@ -53,7 +54,31 @@ def parse_desc(desc):
     return out
 
 
+loading_feeds = {}
+
 async def load_feed(cur, marker_id):
+    fut = loading_feeds.get(marker_id)
+    if fut:
+        #print('awaiting future')
+        await fut
+        #print('got future')
+    else:
+        fut = Future()
+        loading_feeds[marker_id] = fut
+        print('loading feeds:', list(loading_feeds.keys()))
+        try:
+            #print('awaiting feed')
+            await _load_feed(cur, marker_id)
+            #print('got feed')
+            #print('signalling future')
+            fut.set_result(True)
+        except Exception as e:
+            fut.set_result(e)
+        finally:
+            del loading_feeds[marker_id]
+            print('loading feeds:', list(loading_feeds.keys()))
+
+async def _load_feed(cur, marker_id):
     marker_name, marker_timezone = cur.execute('SELECT name, timezone FROM markers WHERE id=?', (marker_id,)).fetchone()
     print(f'load_feed: {marker_id} {marker_name}')
 
