@@ -60,16 +60,19 @@ html, body {
     <button id=btn-start class=button>Start 3</button>
 </div>
 
+<!--
 <audio id="au-ambient" loop>
     <source src="assets/rich/cimon/sounds/cimon-ambient.m4a" type="audio/mp4"> </audio>
+-->
 
 <div class=debug></div>
 
-<script src=bundles/autoplay.bundle.js?blah></script>
+<script src=bundles/autoplay.bundle.js></script>
 <script>
 $(main);
 
 function main() {
+    /*
     const ambient = document.querySelector('#au-ambient');
 
     $('#btn-start').on('click touchend', function() {
@@ -77,5 +80,8 @@ function main() {
         RI_start_audio();
         $(this).hide();
     });
+    */
+
+    ap_init();
 }
 </script>

@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang=en>
+<head>
 <meta charset=UTF-8>
 <meta name=viewport content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1">
-<title>mpc-ibm|isscalc</title>
+<title>mpc-ibm|test</title>
 <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans" rel=stylesheet>
 <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Mono" rel=stylesheet>
 <style>
@@ -35,10 +36,12 @@ html, body {
     width: 100%;
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
+</head>
 <body>
-<img class=worldmap src=images/worldmap-5400x2700-desat.jpg>
-<canvas></canvas>
-
 <div class=debug></div>
-<script src=bundles/isscalc-app.bundle.js></script>
+<script src="bundles/test-app.bundle.js"></script>
+<script>
+    console.log('hello from body');
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@ import {dump_glsl_error} from './webgl-debug';
 
 export function create_gl(el, opts) {
     console.assert(!window.gl);
-    window.gl = el.getContext('webgl', opts);
+    window.gl = el.getContext('webgl', opts) || el.getContext('experimental-webgl', opts);
     return gl;
 }
 

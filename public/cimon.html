@@ -77,7 +77,9 @@ video {
     cursor: pointer;
 }
 </style>
+<!--
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
+-->
 <body>
 
 <div class=cimon-container>
@@ -95,35 +97,67 @@ video {
 
 <script src=bundles/rich-apps.bundle.js></script>
 <script>
-$(main);
+//$(main);
+//document.addEventListener('DOMContentLoaded', main);
+document.addEventListener('DOMContentLoaded', main);
 
 function main() {
-    const richApp = new RI_Cimon({ assetsPath: 'assets/rich/cimon' });
-    richApp.init({ canvas: $('canvas.webgl')[0] });
+    RI_start_hook();
 
-    const video = $('video')[0];
+    function $(sel) { return document.querySelector(sel) }
+
+    var canvas = $('canvas.webgl');
+
+    var richApp = new RI_Cimon({ assetsPath: 'assets/rich/cimon' });
+    richApp.init({ canvas: canvas });
+
+    //var video = $('video')[0];
+    var video = $('video');
 
     video.onended = function() {
-        $(video).hide();
+        //$(video).hide();
+        video.style.display = 'none';
         richApp.play();
     };
 
-    $('#btn-start').on('click', function() {
-        $(this).hide();
+    //$('#btn-start').on('click', function() {
+    $('#btn-start').onclick = function(e) {
+        e.target.style.display = 'none';
+        //$(this).hide();
         video.play();
-
+        //do_iss_calculation();
         //const audio_state = RI_start_hook();
         //$('.debug').text('touchend: AudioContext: ' + audio_state);
-    });
+    };
 
-    /*
-    document.addEventListener('keydown', e => {
+    document.addEventListener('keydown', function(e) {
         if (e.code == 'KeyK') {
             console.log('KILL');
-            ri.kill();
+            richApp.kill();
             e.preventDefault();
         }
     });
+
+    /*
+    function get_geoloc_user() {
+        return new Promise((resolve, reject) => {
+            if (!('geolocation' in navigator))
+                return reject('no geolocation api');
+
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    const co = pos.coords;
+                    resolve(new Geoloc(co.latitude, co.longitude));
+                },
+                function(err) {
+                    reject(err);
+                },
+                {
+                    //maximumAge: 0,
+                    //enableHighAccuracy: false,
+                });
+        });
+    }
     */
 }
 </script>

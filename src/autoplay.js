@@ -1,11 +1,34 @@
-//import {Howl, Howler} from './howler';
+import {Howl, Howler} from './howler';
 //Howler.autoUnlock = false;
 
+let sound;
+
+function provoke_howler_unlock() {
+    // create an empty sound to start the context and add unlock events
+    new Howl({src: 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'});
+}
+
+window.ap_init = function() {
+    /*
+    sound = new Howl({
+        src: ['assets/rich/cimon/sounds/cimon-intro.m4a'],
+    });
+    */
+
+    // silent clip to arm the unlock
+    //const data = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+    //const sound = new Howl({src: data});
+    provoke_howler_unlock();
+
+    //console.log(Howler);
+    //Howler.volume(1);
+};
+
+window.ap_play = function() {
+    sound.play();
+};
+
 /*
-const sound = new Howl({
-    src: ['assets/rich/cimon/sounds/cimon-intro.m4a'],
-});
-*/
 import webAudioTouchUnlock from 'web-audio-touch-unlock';
 
 const AudioContext = (
@@ -93,3 +116,4 @@ function unlock(ctx) {
 
     });
 }
+*/

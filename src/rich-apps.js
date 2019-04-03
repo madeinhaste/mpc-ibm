@@ -1,3 +1,10 @@
+//import es6_object_assign from 'es6-object-assign';
+//es6_object_assign.polyfill();
+//import 'core-js/stable';
+//import 'regenerator-runtime/runtime';
+import '@babel/polyfill';
+import 'whatwg-fetch';
+
 import {init_cimon_app} from './cimon-app';
 import {init_airplane_app} from './airplane-app';
 import {assert} from './utils';

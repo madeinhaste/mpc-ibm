@@ -45,8 +45,18 @@ video {
     display: none;
 }
 
+.button {
+    border: none;
+    color: white;
+    background-color: rgba(0,0,128, 0.5);
+    padding: 50px 100px;
+    font: 50px 'IBM Plex Sans';
+    cursor: pointer;
+}
 </style>
+<!--
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
+-->
 <body>
 
 <div class=airplane-container>
@@ -57,41 +67,55 @@ video {
 </div>
 
 <div class=overlay>
-    <button class=replay>
-        Replay
-    </button>
+    <button id=btn-start class=button>Start</button>
+    <!--<button class=replay>Replay</button>-->
 </div>
 
 <script src=bundles/rich-apps.bundle.js></script>
 <script>
-$(main);
+//$(main);
+document.addEventListener('DOMContentLoaded', main);
 
 function main() {
+    RI_start_hook();
+
+    function $(sel) { return document.querySelector(sel) }
     const richApp = new RI_Airplane({ assetsPath: 'assets/rich/airplane' });
 
+    /*
     const $btnReplay = $('.replay')
         .hide()
         .on('click', function() {
             $(this).hide();
             richApp.replay();
         });
+        */
 
     richApp.init({
-        canvas: $('canvas.webgl')[0],
+        //canvas: $('canvas.webgl')[0],
+        canvas: $('canvas.webgl'),
         onEnd: onAppEnded,
     });
 
     function onAppEnded() {
-        $btnReplay.show();
+        //$btnReplay.show();
     }
 
-    const video = $('video')[0];
-    video.play();
+    //const video = $('video')[0];
+    const video = $('video');
     video.onended = function() {
-        $(video).hide();
+        //$(video).hide();
+        video.style.display = 'none';
         richApp.play();
     };
-    document.addEventListener('keydown', e => {
+
+    //video.play();
+    $('#btn-start').onclick = function(e) {
+        e.target.style.display = 'none';
+        video.play();
+    };
+
+    document.addEventListener('keydown', function(e) {
         if (e.code == 'KeyK') {
             console.log('KILL');
             richApp.kill();
