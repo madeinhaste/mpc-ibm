@@ -4,8 +4,12 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "@babel/polyfill": "^7.4.3",
+    "browserslist": "^4.5.4",
+    "core-js": "3",
     "cors": "^2.8.5",
     "dat.gui": "^0.7.5",
+    "es6-object-assign": "^1.1.0",
     "geo-tz": "^5.0.2",
     "gl-matrix": "^3.0.0",
     "hyperhtml": "^2.25.4",
@@ -13,7 +17,8 @@
     "moment-timezone": "^0.5.23",
     "rollup-plugin-json": "^4.0.0",
     "simplex-noise": "^2.4.0",
-    "web-audio-touch-unlock": "^1.0.1"
+    "web-audio-touch-unlock": "^1.0.1",
+    "whatwg-fetch": "^3.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.4.0",

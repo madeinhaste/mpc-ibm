@@ -1,11 +1,13 @@
 const resolve = require('rollup-plugin-node-resolve');
 const commonjs = require('rollup-plugin-commonjs');
 const notify = require('rollup-plugin-notify');
-const {terser} = require('rollup-plugin-terser');
+const json = require('rollup-plugin-json');
+//const {terser} = require('rollup-plugin-terser');
+const babel = require('rollup-plugin-babel');
 
 // could use this for build tags
 // https://github.com/rollup/rollup-plugin-replace
-const replace = require('rollup-plugin-replace');
+//const replace = require('rollup-plugin-replace');
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -26,8 +28,10 @@ const config = (src, dst) => ({
     plugins: [
         resolve(),
         commonjs(),
+        json(),
         //production && terser(),
         notify(),
+        babel({ exclude: 'node_modules/**' }),
     ],
 });
 
@@ -48,6 +52,9 @@ module.exports = [
     //'trails-worker',
     //'rotation-lock-app',
     //'scenes-app',
+    //'autoplay',
+
     'rich-apps',
-    'autoplay',
+    'isscalc-app',
+    'test-app',
 ].map(bundle);
