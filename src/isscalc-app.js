@@ -31,6 +31,7 @@ let geoip = {
 
 let marker = null;
 let sightings = null;
+let hours_until_overhead = 0;
 
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
@@ -149,6 +150,10 @@ function update_debug() {
         });
     }
 
+    {
+        lines.push(`--\nHOURS: ${hours_until_overhead}`);
+    }
+
     dbg.innerHTML = lines.join('\n');
     redraw();
 }
@@ -168,6 +173,11 @@ function set_user_coords(lat, lon) {
         update_debug();
     });
 
+    api_get('hours', {lat, lon}).then(ob => {
+        hours_until_overhead = ob.h;
+        update_debug();
+    });
+
     redraw();
 }
 
@@ -178,6 +188,12 @@ function load_geoip() {
         geoip.city = ob.city;
         geoip.valid = true;
         set_user_coords(ob.lat, ob.lon);
+    });
+
+    // this is the hours call
+    api_get('hours').then(ob => {
+        console.log(ob);
+        hours_until_overhead = ob.h;
     });
 }
 load_geoip();
