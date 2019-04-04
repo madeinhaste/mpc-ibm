@@ -8,6 +8,8 @@ import {assets} from './cimon-common.js';
 import audiosprites from './cimon-audio-sprites.js';
 import {Howl, Howler} from './howler';
 import {fade_and_stop_sounds} from './misc';
+import {init_cimon_dynamic} from './cimon-dynamic';
+import {api_get} from './cimon-api';
 
 export function init_cimon(gl_ext, end_callback) {
     let visemes = null;
@@ -50,14 +52,16 @@ export function init_cimon(gl_ext, end_callback) {
                     end_callback();
             },
         }),
-        dynamic: null,
     };
 
-    // only do dynamic for webaudio context, as we need decent scheduling
+    let sounds_dynamic = null;
+    let hours_until_overhead = 0;
+
     if (Howler.usingWebAudio) {
-        sounds.dynamic = new Howl({
-            src: audiosprites.urls.map(n => `assets/rich/cimon/sounds/${n}`),
-            sprite: audiosprites.sprite,
+        sounds_dynamic = init_cimon_dynamic();
+        api_get('hours').then(ob => {
+            hours_until_overhead = ob.h;
+            console.log('cimon: hours until overhead =', ob.h.toFixed(1));
         });
     }
 
@@ -451,22 +455,9 @@ export function init_cimon(gl_ext, end_callback) {
 
         sounds.vocal.play();
 
-        if (sounds.dynamic) {
-            const t = (~~(Math.random() * 48))/2;
-
-            const head = 'cimon-dynamic-head2';
-            const name = `cimon-dynamic-${t.toFixed(1)}`;
-            const tail = 'cimon-dynamic-tail';
-
-            const sprites = audiosprites.sprite;
-            const main_dur = sounds.vocal.duration();
-            const head_dur = sprites[head][1]/1000;
-            const name_dur = sprites[name][1]/1000;
-            const tail_dur = sprites[tail][1]/1000;
-
-            sounds.dynamic.play(head, false, main_dur);
-            sounds.dynamic.play(name, false, main_dur + head_dur);
-            sounds.dynamic.play(tail, false, main_dur + head_dur + name_dur);
+        if (sounds_dynamic) {
+            const delay = sounds.vocal.duration();
+            sounds_dynamic.play(hours_until_overhead, delay);
         }
     }
 
@@ -482,6 +473,7 @@ export function init_cimon(gl_ext, end_callback) {
     function kill() {
         console.log('cimon: kill. fade_and_stop_sounds');
         fade_and_stop_sounds(Object.values(sounds));
+        sounds_dynamic.stop();
     }
 
     return {update, draw, add_force, hit_test, set_interest, start_speech, kill};

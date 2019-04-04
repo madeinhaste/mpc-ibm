@@ -3,6 +3,8 @@ import '@babel/polyfill';
 import 'whatwg-fetch';
 
 import {lerp, DEG2RAD} from './utils';
+import {init_cimon_dynamic} from './cimon-dynamic';
+import {api_get} from './cimon-api';
 
 //const api_host = 'http://localhost:8888';
 const api_host = 'https://cg.zigzag.site/iss';
@@ -32,6 +34,14 @@ let geoip = {
 let marker = null;
 let sightings = null;
 let hours_until_overhead = 0;
+
+const cimon_dynamic = init_cimon_dynamic();
+
+function set_hours_until_overhead(hours) {
+    hours_until_overhead = hours;
+    cimon_dynamic.play(hours, 0.0);
+    update_debug();
+}
 
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
@@ -174,8 +184,7 @@ function set_user_coords(lat, lon) {
     });
 
     api_get('hours', {lat, lon}).then(ob => {
-        hours_until_overhead = ob.h;
-        update_debug();
+        set_hours_until_overhead(ob.h);
     });
 
     redraw();
@@ -191,10 +200,7 @@ function load_geoip() {
     });
 
     // this is the hours call
-    api_get('hours').then(ob => {
-        console.log(ob);
-        hours_until_overhead = ob.h;
-    });
+    //api_get('hours').then(ob => { set_hours_until_overhead(ob.h); });
 }
 load_geoip();
 
