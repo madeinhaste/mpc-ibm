@@ -10,24 +10,9 @@ import {Howl, Howler} from './howler';
 import {fade_and_stop_sounds} from './misc';
 import {init_cimon_dynamic} from './cimon-dynamic';
 import {api_get} from './cimon-api';
+import face_anim from './cimon-face-anim';
 
 export function init_cimon(gl_ext, end_callback) {
-    let visemes = null;
-
-    assets.text('data/cimon-intro-visemes.txt')
-        .then(text => {
-            const data = [];
-            each_line(text, line => {
-                data.push.apply(data,
-                    line.split('; ')
-                        .map(parseFloat));
-            });
-            return new Float32Array(data);
-        })
-        .then(data => {
-            visemes = data;
-            //console.log('got visemes:', data.length/15);
-        });
 
     let speech_started = -Infinity;
     let speech_duration;
@@ -45,19 +30,21 @@ export function init_cimon(gl_ext, end_callback) {
                 speech_playing = true;
                 ++speech_count;
             },
+            /*
             onend() {
                 console.log('end');
                 speech_playing = false;
                 if (end_callback)
                     end_callback();
             },
+            */
         }),
     };
 
     let sounds_dynamic = null;
     let hours_until_overhead = 0;
 
-    if (Howler.usingWebAudio) {
+    if (0 && Howler.usingWebAudio) {
         sounds_dynamic = init_cimon_dynamic();
         api_get('hours').then(ob => {
             hours_until_overhead = ob.h;
@@ -151,67 +138,30 @@ export function init_cimon(gl_ext, end_callback) {
         }
     }
 
-    function update_visemes() {
+    function update_face() {
         if (!speech_playing)
             return;
 
         const now = performance.now();
-        const time = (now - speech_started) / 1000;
+        let time_ms = now - speech_started;
 
-        let max_idx = 0;
-        let curr_frame;
-        if (visemes) {
-            const n_frames = visemes.length / 15;
-            curr_frame = clamp(Math.round(time * 100), 0, n_frames - 1);
+        let anim = face_anim.main;
 
-            //let max_idx = 0;
-            let max_val = 0;
-            let sp = 15 * curr_frame;
-            for (let i = 0; i < 15; ++i) {
-                const value = visemes[sp + i];
-                if (value > max_val) {
-                    max_val = value;
-                    max_idx = i;
-                }
+        if (hours_until_overhead > 0) {
+            // dynamic part
+            if (time_ms >= speech_duration) {
+                time_ms -= speech_duration;
+                anim = face_anim.dynamic;
             }
-
-            //debug(max_idx);
-        } else {
-            curr_frame = 0;
         }
 
-        switch (max_idx) {
-        case 0:
-            face_idx = 4;
-            break;
-        case 1: case 4:
-            face_idx = 0;
-            break;
-        case 7:
-            face_idx = 0;
-            break;
-        case 8: case 11:
-            face_idx = 2;
-            break;
-        default:
-            face_idx = 1;
-            break;
-        /*
-        case 1: case 4: case 7:
-            face_idx = 0;
-            break;
-        case 2: case 5: case 8: case 11:
-            face_idx = 2;
-            break;
-        case 3: case 6: case 9: case 12:
-            face_idx = 3;
-            break;
-        case 10: case 13: case 14:
-            face_idx = 1;
-            break;
-            */
-        }
+        const n_frames = anim.length;
+        let curr_frame = Math.floor(time_ms / face_anim.interval_ms);
+        curr_frame = clamp(curr_frame, 0, n_frames-1);
+        face_idx = anim[curr_frame];
+        //console.log(curr_frame, face_idx);
     }
+
 
     function update(env) {
         {
@@ -229,7 +179,7 @@ export function init_cimon(gl_ext, end_callback) {
             }
         }
 
-        update_visemes();
+        update_face();
 
         // move to a random location
         const dt = env.dt / 1000;
@@ -455,10 +405,21 @@ export function init_cimon(gl_ext, end_callback) {
 
         sounds.vocal.play();
 
+        let delay_to_end = sounds.vocal.duration();
+
         if (sounds_dynamic) {
             const delay = sounds.vocal.duration();
             sounds_dynamic.play(hours_until_overhead, delay);
+            delay_to_end += 6.27;   // avg dynanimc len
         }
+
+        setTimeout(function() {
+            console.log('END OF SPEECH');
+            speech_playing = false;
+
+            if (end_callback)
+                end_callback();
+        }, ~~(1000 * delay_to_end));
     }
 
     /*
