@@ -2,10 +2,11 @@
 # return the ip address
 # return the lat/lon
 
-import tornado.ioloop
-import tornado.web
 import math
 import apsw
+import tornado.ioloop
+import tornado.web
+from settings import options
 from routes import routes
 from handlers.iss import start_iss_update
 
@@ -13,12 +14,12 @@ from handlers.iss import start_iss_update
 class Application(tornado.web.Application):
     def __init__(self, db):
         self.db = db
-        settings = { 'debug': True }
+        settings = { 'debug': options.debug }
         super(Application, self).__init__(routes, **settings)
 
 
 def create_db():
-    db = apsw.Connection('data/sightings.db')
+    db = apsw.Connection(options.dbpath)
 
     DEG2RAD = math.pi/180
     EARTH_RADIUS = 6371.0

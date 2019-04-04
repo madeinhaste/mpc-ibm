@@ -7,11 +7,12 @@ import pytz
 import json
 import re
 from datetime import datetime
+from tornado.options import options
 
 import geoip2.database
 import geoip2.errors
 
-geoip_reader = geoip2.database.Reader('./data/geolite2/GeoLite2-City.mmdb')
+geoip_reader = geoip2.database.Reader(options.mmdbpath)
 
 def geoip_city(request):
     ip = request.remote_ip
