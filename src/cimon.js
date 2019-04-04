@@ -44,12 +44,14 @@ export function init_cimon(gl_ext, end_callback) {
     let sounds_dynamic = null;
     let hours_until_overhead = 0;
 
-    if (0 && Howler.usingWebAudio) {
+    if (1 && Howler.usingWebAudio) {
         sounds_dynamic = init_cimon_dynamic();
         api_get('hours').then(ob => {
             hours_until_overhead = ob.h;
             console.log('cimon: hours until overhead =', ob.h.toFixed(1));
         });
+    } else {
+            console.log('cimon: no dynamic');
     }
 
     sounds.ambient.play();

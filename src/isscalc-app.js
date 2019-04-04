@@ -100,15 +100,6 @@ function encode_query(params) {
         '';
 }
 
-function api_get(path, params) {
-    const url = `${api_host}/${path}${encode_query(params)}`;
-    const opts = {
-        mode: 'cors',
-        headers: { 'Access-Control-Allow-Origin': '*', },
-    };
-    return fetch(url, opts).then(r => r.json());
-}
-
 function refresh_iss() {
     return api_get('iss').then(ob => {
         coords.iss = {lat: ob.lat, lon: ob.lon};

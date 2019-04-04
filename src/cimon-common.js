@@ -16,7 +16,7 @@ export const assets = function() {
     }
 
     function sound(path, opts) {
-        const exts = ['m4a'];
+        const exts = ['ogg', 'm4a', 'mp3'];
         const src = exts.map(ext => `${base}/${path}.${ext}`);
         return new Howl(Object.assign({src}, opts));
     }

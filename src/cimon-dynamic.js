@@ -1,14 +1,13 @@
 import {Howl, Howler} from './howler';
 import mins_to_sound from './cimon-mins-to-sound';
+import {assets} from './cimon-common';
 
 export function init_cimon_dynamic() {
-    const base = 'assets/rich/cimon';
 
     function sound(name, cb) {
-        return new Howl({
-            src: [`${base}/sounds/dynamic/cimon-${name}.ogg`],
-            onload: cb,
-        });
+        const path = `sounds/dynamic/cimon-${name}`;
+        const opts = cb ? {onload: cb} : {};
+        return assets.sound(path, opts);
     }
 
     const sounds = {
@@ -53,6 +52,6 @@ export function init_cimon_dynamic() {
         });
     }
 
-    return {play};
+    return {play, stop};
 }
 
