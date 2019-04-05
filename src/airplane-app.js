@@ -5,6 +5,7 @@ import {init_clouds, update_clouds, draw_clouds} from './clouds';
 import {sample_cps, sample_cps_position, fade_and_stop_sounds} from './misc';
 import SimplexNoise from 'simplex-noise';
 import {init_text} from './airplane-text';
+import {init_sky} from './airplane-sky';
 import {FCurve} from './fcurve';
 import {assets} from './airplane-common';
 
@@ -63,6 +64,7 @@ export function init_airplane_app(opts) {
         trail_blend: 'add',
         trail_width: 0.5,
         trail_amount: 32,
+        sky_rotate: 0.310,
     };
 
     const sounds = {
@@ -196,55 +198,6 @@ export function init_airplane_app(opts) {
         `,
     });
 
-    const sky_program = create_program({
-        name: 'sky',
-        vertex: GLSL`
-            attribute vec2 a_position;
-            varying vec3 v_dir;
-
-            uniform mat4 u_proj_inv;
-            uniform mat3 u_view_inv;
-
-            void main() {
-                vec4 P = vec4(a_position, 0.0, 1.0);
-
-                {
-                    v_dir = u_view_inv * (u_proj_inv * P).xyz;
-                }
-
-                gl_Position = P;
-            }
-        `,
-        fragment: GLSL`
-            precision mediump float;
-            varying vec3 v_dir;
-            uniform sampler2D u_texture0;
-            uniform sampler2D u_texture1;
-            uniform vec2 u_resolution;
-            uniform float u_rotate;
-            uniform float u_crossfade;
-
-            float random(vec2 st) {
-                return fract(sin(dot(st.xy, vec2(12.9898,78.233)))*43758.5453123);
-            }
-
-            void main() {
-                vec3 dir = normalize(v_dir);
-                vec2 uv = vec2(
-                    (atan(dir.z, dir.x) / 6.283185307179586476925286766559) + 0.5,
-                    acos(dir.y) / 3.1415926535897932384626433832795);
-                uv.x = fract(uv.x + u_rotate);
-
-                vec3 C = mix(
-                    texture2D(u_texture0, uv).rgb,
-                    texture2D(u_texture1, uv).rgb,
-                    u_crossfade);
-
-                gl_FragColor = vec4(C, 1.0);
-            }
-        `,
-    });
-
     const fade_program = create_program({
         name: 'fade',
         vertex: GLSL`
@@ -267,29 +220,6 @@ export function init_airplane_app(opts) {
 
     const buf_fstri = create_buffer(gl.ARRAY_BUFFER, new Float32Array([ -1, -1, 3, -1, -1, 3 ]));
 
-    const sky_textures = [];
-
-    {
-        // load sky textures
-        const max_texture_size = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-        const size = (max_texture_size >= 8192) ? '8k' : '4k';
-
-        const filenames = [
-            `airplane-env-clear-${size}.jpg`,
-            `airplane-env-storm-${size}.jpg`,
-        ];
-
-        filenames.forEach(filename => {
-            const tex = create_texture({ size: 128, min: gl.LINEAR, mag: gl.LINEAR });
-            sky_textures.push(tex);
-            assets.image(`textures/${filename}`).then(img => {
-                gl.bindTexture(gl.TEXTURE_2D, tex);
-                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-            });
-        });
-    }
-
     let aerial = false;
     let speed = 6.0;
 
@@ -311,6 +241,12 @@ export function init_airplane_app(opts) {
         viewproj_inv: mat4.create(),
     };
     vec3.set(persp.pos, 0, 20, 120);
+
+    const env = {
+        canvas,
+        params,
+        persp,
+    };
 
     const rot_target = quat.create();
 
@@ -477,6 +413,7 @@ export function init_airplane_app(opts) {
     update_clouds(persp, true);
 
     const text = init_text();
+    const sky = init_sky();
 
     function draw() {
         resize_canvas_to_client_size(canvas, false);
@@ -490,7 +427,7 @@ export function init_airplane_app(opts) {
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         } else {
             gl.clear(gl.DEPTH_BUFFER_BIT);
-            draw_sky();
+            sky.draw(env);
         }
 
         grid_enabled && draw_grid();
@@ -865,39 +802,6 @@ export function init_airplane_app(opts) {
         gl.disable(gl.BLEND);
     }
 
-    const proj_inv = mat4.create();
-    const view_inv = mat3.create();
-    let sky_rotate = 0.310;
-
-    function draw_sky() {
-        const pgm = sky_program.use();
-
-        {
-            // http://marcinignac.com/blog/pragmatic-pbr-hdr/
-            // https://www.saschawillems.de/?page_id=2122
-            // https://rauwendaal.net/2014/06/14/rendering-a-screen-covering-triangle-in-opengl/
-            const v = persp.view;
-            const b = view_inv;
-            b[0] = v[0]; b[1] = v[4]; b[2] = v[8];
-            b[3] = v[1]; b[4] = v[5]; b[5] = v[9];
-            b[6] = v[2]; b[7] = v[6]; b[8] = v[10];
-            mat4.invert(proj_inv, persp.proj);
-        }
-
-        pgm.uniformMatrix4fv('u_proj_inv', proj_inv);
-        pgm.uniformMatrix3fv('u_view_inv', view_inv);
-
-        pgm.uniformSampler2D('u_texture0', sky_textures[0]);
-        pgm.uniformSampler2D('u_texture1', sky_textures[1]);
-        pgm.uniform2f('u_resolution', canvas.width, canvas.height);
-        pgm.uniform1f('u_rotate', sky_rotate);
-        pgm.uniform1f('u_crossfade', params.sky_blend);
-        gl.bindBuffer(gl.ARRAY_BUFFER, buf_fstri);
-        pgm.vertexAttribPointer('a_position', 2, gl.FLOAT, false, 0, 0);
-        gl.disable(gl.CULL_FACE);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
-    }
-
     const V = vec3.create();
     const Q = quat.create();
     const closest_spline_pos = vec3.create();
@@ -1025,7 +929,7 @@ export function init_airplane_app(opts) {
         }
 
         if (debug_enabled) {
-            debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}  shake: ${shake.amount.toFixed(3)} sky: ${sky_rotate.toFixed(3)} fov: ${persp.fov}  travel: ${guide_position.toFixed(3)}`);
+            debug(`lat: ${persp.pos[0].toFixed(3)}  alt: ${persp.pos[1].toFixed(3)}  speed: ${speed.toFixed(3)}  error: ${distance_from_closest_spline_pos.toFixed(3)}  ${autopilot_enabled ? '[autopilot]' : ''}  shake: ${shake.amount.toFixed(3)} sky: ${params.sky_rotate.toFixed(3)} fov: ${persp.fov}  travel: ${guide_position.toFixed(3)}`);
         }
 
         if (aerial)
@@ -1206,12 +1110,12 @@ export function init_airplane_app(opts) {
         }
 
         if (e.code == 'ArrowLeft') {
-            sky_rotate -= 0.01;
+            params.sky_rotate -= 0.01;
             e.preventDefault();
         }
 
         if (e.code == 'ArrowRight') {
-            sky_rotate += 0.01;
+            params.sky_rotate += 0.01;
             e.preventDefault();
         }
 
