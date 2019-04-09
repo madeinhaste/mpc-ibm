@@ -1,4 +1,22 @@
+import json
+import time
 from handlers import BaseHandler, geoip_city, find_marker, load_feed
+from tornado.httpclient import AsyncHTTPClient
+
+
+async def get_next_sighting_hours_from_open_notify_api(lat, lon):
+    url = f'http://api.open-notify.org/iss-pass.json?lat={lat}&lon={lon}&n=1'
+    try:
+        response = await AsyncHTTPClient().fetch(url)
+    except Exception as e:
+        return 0.0
+
+    ob = json.loads(response.body)
+    next_pass = ob['response'][0]
+    risetime = float(next_pass['risetime'])
+    now = time.time()
+    hours_to_risetime = (risetime - now) / 3600
+    return hours_to_risetime
 
 
 class HoursHandler(BaseHandler):
@@ -38,5 +56,6 @@ class HoursHandler(BaseHandler):
             hours = row[1]
             return self.write({'h': hours})
         else:
-            return self.write({'h': 0.0})
+            hours = await get_next_sighting_hours_from_open_notify_api(lat, lon)
+            return self.write({'h': hours, 'error': 'no sightings found in nasa feeds'})
 
