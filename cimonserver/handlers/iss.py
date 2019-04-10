@@ -3,6 +3,7 @@ from datetime import datetime
 import tornado.ioloop
 from tornado.httpclient import AsyncHTTPClient
 from handlers import BaseHandler
+from handlers.tle import get_iss_location
 
 
 iss_current = {
@@ -15,31 +16,34 @@ iss_current = {
 
 def start_iss_update():
     async def f():
-        try:
-            r = await AsyncHTTPClient().fetch('http://api.open-notify.org/iss-now.json')
-        except Exception as e:
-            print('Error:', e)
-        else:
-            ob = json.loads(r.body)
-            timestamp = datetime.utcfromtimestamp(ob['timestamp'])
-            loc = ob['iss_position']
+        #try:
+        #    r = await AsyncHTTPClient().fetch('http://api.open-notify.org/iss-now.json')
+        #except Exception as e:
+        #    print('Error:', e)
+        #else:
 
-            iss_current['timestamp'] = timestamp.isoformat()
-            iss_current['lat'] = loc['latitude']
-            iss_current['lon'] = loc['longitude']
+        #ob = json.loads(r.body)
+        ob = get_iss_location()
 
-            trail = iss_current['trail']
-            trail.append({
-                'lat': loc['latitude'],
-                'lon': loc['longitude'],
-                })
-            max_trail_len = 200
-            while len(trail) > max_trail_len:
-                trail.pop(0)
+        timestamp = datetime.utcfromtimestamp(ob['timestamp'])
+        loc = ob['iss_position']
 
-            print('updated iss', timestamp)
+        iss_current['timestamp'] = timestamp.isoformat()
+        iss_current['lat'] = loc['latitude']
+        iss_current['lon'] = loc['longitude']
 
-    tornado.ioloop.IOLoop.current().spawn_callback(f)
+        trail = iss_current['trail']
+        trail.append({
+            'lat': loc['latitude'],
+            'lon': loc['longitude'],
+            })
+        max_trail_len = 200
+        while len(trail) > max_trail_len:
+            trail.pop(0)
+
+        print('updated iss', timestamp)
+
+    #tornado.ioloop.IOLoop.current().spawn_callback(f)
     pc = tornado.ioloop.PeriodicCallback(f, 10000)
     pc.start()
 

@@ -9,6 +9,7 @@ import tornado.web
 from settings import options
 from routes import routes
 from handlers.iss import start_iss_update
+from handlers.tle import start_tle_update
 
 
 class Application(tornado.web.Application):
@@ -46,4 +47,5 @@ if __name__ == '__main__':
     app = make_app()
     app.listen(8888, xheaders=True)
     start_iss_update()
+    start_tle_update()
     tornado.ioloop.IOLoop.current().start()
