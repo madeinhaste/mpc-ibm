@@ -962,8 +962,9 @@ export function init_airplane_app(opts) {
         params.sky_blend = anims.sky_blend.evaluate(time);
         params.sun_strength = lerp(1.5, 0.4, params.sky_blend);
         params.ambient_shading = lerp(0.53, 1.0, params.sky_blend);
-        //params.sky_blend = (Math.sin(5*time) + 1) / 2;
-        params.fade = anims.fade.evaluate(time);
+
+        // fade to black
+        //params.fade = anims.fade.evaluate(time);
     }
 
     let start_time = -1;
