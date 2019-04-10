@@ -8,6 +8,7 @@ import {init_text} from './airplane-text';
 import {init_sky} from './airplane-sky';
 import {FCurve} from './fcurve';
 import {assets} from './airplane-common';
+import {make_fps_graph} from './fps-graph';
 
 export function init_airplane_app(opts) {
     let canvas = opts.canvas;
@@ -39,6 +40,7 @@ export function init_airplane_app(opts) {
     let developer_enabled = false;
     let debug_enabled = false;
     let mouse_enabled = !developer_enabled;
+    let fps_graph_enabled = false;
 
     let kill_callback = null;
 
@@ -967,7 +969,10 @@ export function init_airplane_app(opts) {
         //params.fade = anims.fade.evaluate(time);
     }
 
+    let fps_graph = null;
+
     let start_time = -1;
+    let last_time = 0;
 
     function animate(now) {
         if (kill_callback) {
@@ -990,6 +995,21 @@ export function init_airplane_app(opts) {
             if (start_time < 0)
                 start_time = now;
             time = now - start_time;
+        }
+
+        if (fps_graph_enabled) {
+
+            // lazy create
+            if (!fps_graph)
+                fps_graph = make_fps_graph();
+
+            // fps graph
+            const dt = time - last_time;
+            last_time = time;
+            if (dt) {
+                fps_graph.update(dt);
+                fps_graph.draw();
+            }
         }
 
         requestAnimationFrame(animate);
@@ -1078,96 +1098,99 @@ export function init_airplane_app(opts) {
         autopilot_enabled = false;
     }
 
-    /*
-    document.onkeydown = e => {
-        if (e.code == 'KeyC') {
-            toggle_cockpit();
-            e.preventDefault();
-        }
+    function add_developer_controls() {
+        document.onkeydown = e => {
+            if (e.code == 'KeyC') {
+                toggle_cockpit();
+                e.preventDefault();
+            }
 
-        if (e.code == 'KeyV') {
-            clouds_enabled = !clouds_enabled;
-            e.preventDefault();
-        }
+            if (e.code == 'KeyV') {
+                clouds_enabled = !clouds_enabled;
+                e.preventDefault();
+            }
 
-        if (e.code == 'KeyD') {
-            debug_enabled = !debug_enabled;
-            if (!debug_enabled)
-                debug();
-            e.preventDefault();
-        }
+            if (e.code == 'KeyD') {
+                debug_enabled = !debug_enabled;
+                if (!debug_enabled)
+                    debug();
+                e.preventDefault();
+            }
 
-        if (e.code == 'KeyT') {
-            trails_enabled = !trails_enabled;
-            e.preventDefault();
-        }
+            if (e.code == 'KeyT') {
+                trails_enabled = !trails_enabled;
+                e.preventDefault();
+            }
 
-        if (!developer_enabled)
-            return;
+            if (e.code == 'KeyS') {
+                reinitialize_spline();
+                e.preventDefault();
+            }
 
-        if (e.code == 'KeyS') {
-            reinitialize_spline();
-            e.preventDefault();
-        }
+            if (e.code == 'ArrowLeft') {
+                params.sky_rotate -= 0.01;
+                e.preventDefault();
+            }
 
-        if (e.code == 'ArrowLeft') {
-            params.sky_rotate -= 0.01;
-            e.preventDefault();
-        }
+            if (e.code == 'ArrowRight') {
+                params.sky_rotate += 0.01;
+                e.preventDefault();
+            }
 
-        if (e.code == 'ArrowRight') {
-            params.sky_rotate += 0.01;
-            e.preventDefault();
-        }
+            if (e.code == 'BracketLeft') {
+                persp.fov -= 1;
+                e.preventDefault();
+            }
 
-        if (e.code == 'BracketLeft') {
-            persp.fov -= 1;
-            e.preventDefault();
-        }
+            if (e.code == 'BracketRight') {
+                persp.fov += 1;
+                e.preventDefault();
+            }
 
-        if (e.code == 'BracketRight') {
-            persp.fov += 1;
-            e.preventDefault();
-        }
+            if (e.code == 'KeyM') {
+                mouse_enabled = !mouse_enabled;
+                e.preventDefault();
+            }
 
-        if (e.code == 'KeyM') {
-            mouse_enabled = !mouse_enabled;
-            e.preventDefault();
-        }
+            if (e.code == 'KeyA') {
+                aerial = !aerial;
+                debug(aerial ? 'aerial' : 'persp');
+                e.preventDefault();
+            }
 
-        if (e.code == 'KeyA') {
-            aerial = !aerial;
-            debug(aerial ? 'aerial' : 'persp');
-            e.preventDefault();
-        }
+            if (e.code == 'KeyF') {
+                //fog_enabled = !fog_enabled;
+                fps_graph_enabled = !fps_graph_enabled;
+                if (fps_graph && !fps_graph_enabled)
+                    fps_graph.clear();
+                e.preventDefault();
+            }
 
-        if (e.code == 'KeyF') {
-            fog_enabled = !fog_enabled;
-            e.preventDefault();
-        }
+            if (e.code == 'KeyW') {
+                wireframe = !wireframe;
+                e.preventDefault();
+            }
 
-        if (e.code == 'KeyW') {
-            wireframe = !wireframe;
-            e.preventDefault();
-        }
+            if (e.code == 'KeyG') {
+                grid_enabled = !grid_enabled;
+                e.preventDefault();
+            }
 
-        if (e.code == 'KeyG') {
-            grid_enabled = !grid_enabled;
-            e.preventDefault();
-        }
+            if (e.code == 'KeyQ') {
+                autopilot_enabled = !autopilot_enabled;
+                e.preventDefault();
+            }
+        };
 
-        if (e.code == 'KeyQ') {
-            autopilot_enabled = !autopilot_enabled;
-            e.preventDefault();
-        }
-    };
+        document.addEventListener('mousewheel', e => {
+            const dy = -e.deltaY/53;
+            speed = clamp(speed * (1 + 0.1*dy), 1, 50);
+            //e.preventDefault();
+        }, {passive: true});
+    }
 
-    document.addEventListener('mousewheel', e => {
-        const dy = -e.deltaY/53;
-        speed = clamp(speed * (1 + 0.1*dy), 1, 50);
-        //e.preventDefault();
-    }, {passive: true});
-    */
+    if (developer_enabled)
+        add_developer_controls();
 
     function on_deviceorientation(e) {
         if (!(e.beta && e.gamma)) {
