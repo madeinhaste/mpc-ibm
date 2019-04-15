@@ -2,7 +2,7 @@
 <html lang=en>
 <meta charset=UTF-8>
 <meta name=viewport content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1">
-<title>mpc-ibm|airplane</title>
+<title>mpc-ibm|clouds</title>
 <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans" rel=stylesheet>
 <link href="https://fonts.googleapis.com/css?family=IBM+Plex+Mono" rel=stylesheet>
 <style>
@@ -77,76 +77,29 @@ video {
     background-color: #400;
 }
 
+.debug {
+    position: absolute;
+    top: 0; left: 0;
+    padding: 4px 8px;
+    font-size: 20px;
+    white-space: pre-line;
+    background-color: rgba(0,0,0, 0.5);
+    color: white;
+    pointer-events: none;
+}
+
 </style>
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script>
 <body>
-
-<div class=airplane-container>
-    <canvas class=webgl></canvas>
-    <video playsinline webkit-playsinline>
-        <source src="assets/rich/airplane/videos/airplane-intro.mp4" type="video/mp4">
-    </video>
-</div>
-
-<div class=overlay>
-    <!-- <button id=btn&#45;start class=button>Start</button> -->
-    <!--<button class=replay>Replay</button>-->
-</div>
-
+<canvas class=webgl></canvas>
+<div class=debug></div>
 <script src=bundles/rich-apps.bundle.js></script>
 <script>
-//$(main);
 document.addEventListener('DOMContentLoaded', main);
 
 function main() {
     RI_start_hook();
-
-    //function $(sel) { return document.querySelector(sel) }
     const richApp = new RI_Airplane({ assetsPath: 'assets/rich/airplane' });
-
-    /*
-    const $btnReplay = $('.replay')
-        .hide()
-        .on('click', function() {
-            $(this).hide();
-            richApp.replay();
-        });
-        */
-
-    richApp.init({
-        canvas: 'canvas.webgl',
-        onEnd: onAppEnded,
-    });
-
-    function onAppEnded() {
-        //$btnReplay.show();
-    }
-
-    const video = $('video')[0];
-    video.onended = function() {
-        $(video).hide();
-        video.style.display = 'none';
-        richApp.play();
-    };
-
-    //video.style.display = 'none';
-    //$('#btn-start').style.display = 'none';
-    //richApp.play();
-
-    video.play();
-    /*
-    $('#btn-start').onclick = function(e) {
-        e.target.style.display = 'none';
-        video.play();
-    };
-    */
-
-    document.addEventListener('keydown', function(e) {
-        if (e.code == 'KeyK') {
-            console.log('KILL');
-            richApp.kill();
-            e.preventDefault();
-        }
-    });
+    richApp.init({ canvas: 'canvas.webgl' });
+    richApp.play();
 }
 </script>

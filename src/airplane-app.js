@@ -1,3 +1,5 @@
+//import './reloader';
+
 import {mat3, mat4, vec2, vec3, vec4, quat} from 'gl-matrix';
 import {assert, lerp, clamp, random_gaussian, DEG2RAD, resize_canvas_to_client_size, redraw_func, $} from './utils';
 import {create_gl, create_buffer, create_program, create_texture, GLSL} from './webgl';
@@ -8,6 +10,7 @@ import {init_text} from './airplane-text';
 import {init_sky} from './airplane-sky';
 import {FCurve} from './fcurve';
 import {assets} from './airplane-common';
+//import * as dat from 'dat.gui';
 import {make_fps_graph} from './fps-graph';
 
 export function init_airplane_app(opts) {
@@ -50,12 +53,15 @@ export function init_airplane_app(opts) {
         sun_color: [255,135,0],
         sun_strength: 1.5,
         ambient_shading: 0.53,
-        cloud_scale: 1.3,
+        //cloud_scale: 1.3,
+        cloud_scale: 3,
         cloud_rotate: 1.0,
+        cloud_resolution: 0.25,
+        cloud_rt: false,
         guide_color_0: [140, 140, 140],
         guide_color_1: [65, 65, 65],
-        guide_ymin: 15,
-        guide_ymax: 24,
+        guide_ymin: 5+15,
+        guide_ymax: 5+24,
         //guide_ymin: 18,
         //guide_ymax: 20,
         guide_wander: 5.6,
@@ -223,7 +229,7 @@ export function init_airplane_app(opts) {
     const buf_fstri = create_buffer(gl.ARRAY_BUFFER, new Float32Array([ -1, -1, 3, -1, -1, 3 ]));
 
     let aerial = false;
-    let speed = 6.0;
+    let speed = 4.75;
 
     const shake = {
         amount: 0,
@@ -424,7 +430,7 @@ export function init_airplane_app(opts) {
         const ch = canvas.height;
         gl.viewport(0, 0, cw, ch);
 
-        if (aerial) {
+        if (aerial || !sky_enabled) {
             gl.clearColor(0, 0, 0, 1);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         } else {
@@ -434,7 +440,7 @@ export function init_airplane_app(opts) {
 
         grid_enabled && draw_grid();
         if (clouds_enabled)
-            draw_clouds(persp, get_fog_range(), gl_ext.instanced, wireframe, params);
+            draw_clouds(persp, get_fog_range(), gl_ext.instanced, wireframe, params, cw, ch);
         draw_spline();
 
         if (1) {
@@ -1050,7 +1056,6 @@ export function init_airplane_app(opts) {
         play();
     }
 
-    /*
     const gui = (function() {
         if (!developer_enabled)
             return null;
@@ -1066,6 +1071,8 @@ export function init_airplane_app(opts) {
 
         gui.add(params, 'cloud_scale', 0, 5);
         gui.add(params, 'cloud_rotate', 0, 1);
+        gui.add(params, 'cloud_resolution', 0, 1);
+        //gui.add(params, 'cloud_rt');
 
         gui.addColor(params, 'guide_color_0');
         gui.addColor(params, 'guide_color_1');
@@ -1075,13 +1082,12 @@ export function init_airplane_app(opts) {
         gui.add(params, 'guide_advance', 10, 100);
         gui.add(params, 'guide_rebuild');
 
-        gui.addColor(params, 'trail_color_0').onChange(update_trails_palette);
-        gui.addColor(params, 'trail_color_1').onChange(update_trails_palette);
-        gui.add(params, 'trail_blend', ['normal', 'add']);
-        gui.add(params, 'trail_width', 0, 3);
-        gui.add(params, 'trail_amount', 0, 1024);
+        //gui.addColor(params, 'trail_color_0').onChange(update_trails_palette);
+        //gui.addColor(params, 'trail_color_1').onChange(update_trails_palette);
+        //gui.add(params, 'trail_blend', ['normal', 'add']);
+        //gui.add(params, 'trail_width', 0, 3);
+        //gui.add(params, 'trail_amount', 0, 1024);
     }());
-    */
 
     function on_mousemove(e) {
         if (!mouse_enabled) {

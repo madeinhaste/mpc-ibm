@@ -1,5 +1,5 @@
 import {lerp, clamp, random_gaussian} from './utils';
-import {create_buffer, create_program, create_texture, GLSL} from './webgl';
+import {create_buffer, create_program, create_texture, RenderTexture, GLSL} from './webgl';
 import {assets} from './airplane-common';
 
 const num_clouds = 8192;
@@ -10,7 +10,10 @@ let cloud_buffer;
 let quad_buffer;
 let wire_buffer;
 let cloud_program;
+let blit_program;
 let texture;
+let render_texture;
+let use_render_texture = false;
 //let texture_sky;
 
 export function init_clouds() {
@@ -24,6 +27,8 @@ export function init_clouds() {
         mag: gl.LINEAR,
     });
     gl.generateMipmap(gl.TEXTURE_2D);
+
+    render_texture = new RenderTexture(128, 128, false, false);
 
     assets.image('textures/airplane-cloud.png').then(img => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -113,17 +118,58 @@ export function init_clouds() {
                 vec3 fogColor = vec3(0.777, 0.824, 0.897);
                 if (u_use_texture) {
                     C = texture2D(u_texture, v_coord);
+
+                    //C.rgb *= C.a;
+                    //C.a *= 0.5;
+
                     C.a *= pow(v_fog, 1.0);
                     C.a *= (1.0 - v_fade);
 
-                    {
+                    if (true) {
                         C.rgb *= v_ambcol;
                         C.rgb = mix(C.rgb, u_dircolor, clamp(v_dircol, 0.0, 1.0));
+                        //C.rgb = vec3(0.01);
+                    }
+
+                    C.rgb *= C.a;
+
+                    if (false) {
+                        vec2 P = (v_coord - 0.5) * 2.0;
+                        float d = 1.0 - dot(P, P);
+                        d = clamp(d, 0.0, 1.0);
+
+                        C = vec4(1.0, 0.0, 0.0, d);
                     }
 
                 } else {
                     C = vec4(u_wire_color, 1.0);
                 }
+                gl_FragColor = C;
+            }
+        `,
+    });
+
+    blit_program = create_program({
+        name: 'cloud-blit',
+        vertex: GLSL`
+            attribute vec2 a_coord;
+            varying vec2 v_coord;
+
+            void main() {
+                vec2 P = (a_coord - 0.5) * 2.0;
+                gl_Position = vec4(P, 0.0, 1.0);
+                v_coord = a_coord;
+            }
+        `,
+        fragment: GLSL`
+            precision mediump float;
+            varying vec2 v_coord;
+            uniform sampler2D u_texture;
+
+            void main() {
+                vec4 C = texture2D(u_texture, v_coord).rgba;
+                //gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                //gl_FragColor = vec4(C.a, 0.0, 0.0, 1.0);
                 gl_FragColor = C;
             }
         `,
@@ -134,22 +180,22 @@ export function update_clouds(persp, init) {
     const zmax = persp.pos[2] - persp.zrange[0];
     const zmin = persp.pos[2] - persp.zrange[1];
 
+    // zmax: near
+    // zmin: far
+
     let dirty = false;
     let lastz = zmax;
 
     for (let i = 0; i < num_clouds; ++i) {
         const dp = 5 * i;
-
         const z = clouds[dp+2];
-
-        if (z < lastz) {
-            clouds_start = i;
-        }
-        lastz = z;
 
         if (!init && z < zmax) {
             continue;
         }
+
+        // z is >= zmax, ie in front of the near plane
+        // so respawn at the far plane
 
         // position x, y
         clouds[dp + 0] = persp.pos[0] + 100 * (lerp(-1, 1, Math.random()) + random_gaussian(0, 0.3));
@@ -169,13 +215,25 @@ export function update_clouds(persp, init) {
         dirty = true;
     }
 
+    for (let i = 0; i < num_clouds; ++i) {
+        const dp = 5 * i;
+        const z = clouds[dp+2];
+        if (z < lastz) {
+            clouds_start = i;
+        }
+        lastz = z;
+    }
+
     if (dirty) {
         gl.bindBuffer(gl.ARRAY_BUFFER, cloud_buffer);
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, clouds);
     }
 }
 
-export function draw_clouds(persp, fog_range, ext, wire, params) {
+export function draw_clouds(persp, fog_range, ext, wire, params, cw, ch) {
+    //use_render_texture = params.cloud_rt;
+    use_render_texture = params.cloud_resolution < 1;
+
     var pgm = cloud_program.use();
     pgm.uniformMatrix4fv('u_mvp', persp.viewproj);
     pgm.uniformMatrix4fv('u_view', persp.view);
@@ -206,14 +264,30 @@ export function draw_clouds(persp, fog_range, ext, wire, params) {
     ext.vertexAttribDivisorANGLE(attr_scale_rotate, 1);
 
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    /*
+    gl.blendFuncSeparate(
+        gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA,
+        gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        */
 
     const mode = wire ? gl.LINE_LOOP : gl.TRIANGLE_STRIP;
 
     const start = clouds_start;
     const count = num_clouds - start;
 
-    {
+    if (use_render_texture) {
+        const r = params.cloud_resolution;
+        const tw = Math.max(128, r * cw);
+        const th = Math.max(128, r * ch);
+        render_texture.resize(tw, th);
+        render_texture.push();
+        //gl.clearColor(1,0,0,0);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+
+    if (1) {
         pgm.uniform3f('u_wire_color', 1,1,0);
         const offset = 20 * start;
         gl.vertexAttribPointer(attr_position, 3, gl.FLOAT, false, 20, offset + 0);
@@ -221,7 +295,7 @@ export function draw_clouds(persp, fog_range, ext, wire, params) {
         ext.drawArraysInstancedANGLE(mode, 0, 4, count);
     }
 
-    {
+    if (1) {
         pgm.uniform3f('u_wire_color', 0,1,0);
         const offset = 0;
         gl.vertexAttribPointer(attr_position, 3, gl.FLOAT, false, 20, offset + 0);
@@ -231,4 +305,25 @@ export function draw_clouds(persp, fog_range, ext, wire, params) {
 
     ext.vertexAttribDivisorANGLE(attr_position, 0);
     ext.vertexAttribDivisorANGLE(attr_scale_rotate, 0);
+
+    if (use_render_texture) {
+        render_texture.pop();
+
+        const pgm = blit_program.use();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad_buffer);
+        pgm.vertexAttribPointer('a_coord', 2, gl.FLOAT, false, 0, 0);
+        pgm.uniformSampler2D('u_texture', render_texture.texture);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        /*
+        gl.blendFuncSeparate(
+            gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, 
+            gl.ONE, gl.ZERO);
+            */
+        //gl.disable(gl.BLEND);
+        //gl.colorMask(true, true, true, false);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        //gl.colorMask(true, true, true, true);
+        gl.disable(gl.BLEND);
+    }
 }

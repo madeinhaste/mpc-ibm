@@ -371,3 +371,103 @@ export const GLSL = (chunks, ...args) => {
     });
     return out;
 };
+
+export function RenderTexture(width, height, depth, floatColor) {
+    this.width = width;
+    this.height = height;
+
+    this.framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+
+    this.texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
+    this.dataType = floatColor ? gl.FLOAT : gl.UNSIGNED_BYTE;
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, this.dataType, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
+    this.depthTexture = null;
+    this.depthRenderbuffer = null;
+
+    depth = depth ? 'RENDERBUFFER' : 'NONE';
+    switch (depth) {
+        case 'TEXTURE':
+            this.depthTexture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, this.depthTexture);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, width, height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT, null);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depthTexture, 0);
+            break;
+
+        case 'RENDERBUFFER':
+            this.depthRenderbuffer = gl.createRenderbuffer();
+            gl.bindRenderbuffer(gl.RENDERBUFFER, this.depthRenderbuffer);
+            gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+            gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.depthRenderbuffer);
+            gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+        break;
+
+        default:
+            // no depth attachment
+            break;
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    this.vp_save = gl.getParameter(gl.VIEWPORT);
+}
+
+RenderTexture.prototype.push = function() {
+    this.vp_save = gl.getParameter(gl.VIEWPORT);
+    gl.viewport(0, 0, this.width, this.height);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+};
+
+RenderTexture.prototype.pop = function() {
+    const vp = this.vp_save;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(vp[0], vp[1], vp[2], vp[3]);
+};
+
+RenderTexture.prototype.render = function(callback) {
+    //var vp = gl.getParameter(gl.VIEWPORT);
+    //gl.viewport(0, 0, this.width, this.height);
+    //gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+
+    this.push();
+    callback();
+    this.pop();
+
+    //gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    //gl.viewport(vp[0], vp[1], vp[2], vp[3]);
+};
+
+RenderTexture.prototype.resize = function(width, height) {
+    if (width === this.width && height === this.height)
+        return;
+
+    this.width = width;
+    this.height = height;
+    console.log('rt resize:', width, height);
+
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, this.dataType, null);
+
+    if (this.depthTexture) {
+        gl.bindTexture(gl.TEXTURE_2D, this.depthTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, width, height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT, null);
+    }
+
+    if (this.depthRenderbuffer) {
+        gl.bindRenderbuffer(gl.RENDERBUFFER, this.depthRenderbuffer);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    }
+};

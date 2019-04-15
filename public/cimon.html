@@ -20,9 +20,15 @@ html, body {
 
 video {
     position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background-color: black;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     object-fit: cover;
+}
+
+@media (orientation: portrait) {
+    video {
+        /* transform: rotate(90deg) scale(0.5625); */
+    }
 }
 
 .debug {
@@ -85,12 +91,12 @@ video {
 <div class=cimon-container>
     <canvas class=webgl></canvas>
     <video playsinline webkit-playsinline>
-        <source src="assets/rich/cimon/videos/cimon-intro.mp4" type="video/mp4">
+        <source src="assets/rich/cimon/videos/cimon-intro-r.mp4" type="video/mp4">
     </video>
 </div>
 
 <div class=overlay>
-    <button id=btn-start class=button>Start</button>
+    <!-- <button id=btn&#45;start class=button>Start</button> -->
 </div>
 
 <div class=debug></div>
