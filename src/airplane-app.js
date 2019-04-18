@@ -44,6 +44,7 @@ export function init_airplane_app(opts) {
     let debug_enabled = false;
     let mouse_enabled = !developer_enabled;
     let fps_graph_enabled = false;
+    let sky_enabled = true;
 
     let kill_callback = null;
 
