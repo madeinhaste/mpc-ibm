@@ -21,7 +21,7 @@ async def get_next_sighting_hours_from_open_notify_api(lat, lon):
 
 
 def get_next_sighting_hours_from_tle(lat, lon):
-    r = get_iss_passes(lat, lon, 100.0, 1)
+    r = get_iss_passes(lat, lon, 100.0, 3)
     r = r['response'][0]
     risetime = r['risetime']
     delta_hours = (risetime - time.time()) / 3600
